@@ -1,8 +1,9 @@
 import json
 import os
+import shutil
 from pathlib import Path
 from datetime import datetime
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from dataclasses import dataclass, asdict
 
 
@@ -143,3 +144,52 @@ class AccountManager:
         self._accounts[account_id].nickname = nickname
         self._save()
         return True
+
+    def create_temp_cookie_dir(self) -> str:
+        """创建临时 cookie 目录，登录成功后升级为正式账号目录"""
+        temp_id = f"_temp_{int(datetime.now().timestamp())}"
+        temp_dir = self.cookies_base / temp_id
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        return str(temp_dir)
+
+    def promote_temp_to_account(self, temp_dir: str, nickname: str = "") -> Optional[AccountInfo]:
+        """将临时目录升级为正式账号：创建账号、移动 cookie、清理临时目录"""
+        temp_path = Path(temp_dir)
+        if not temp_path.exists():
+            return None
+
+        # 检查临时目录中是否有有效的 cookie
+        cookie_file = temp_path / "cookies.json"
+        state_file = temp_path / "login_state.json"
+        if not cookie_file.exists() or not state_file.exists():
+            shutil.rmtree(temp_path, ignore_errors=True)
+            return None
+
+        # 创建正式账号
+        account = self.add_account(nickname)
+        if not account:
+            shutil.rmtree(temp_path, ignore_errors=True)
+            return None
+
+        # 将 cookie 移动到正式目录
+        dest = Path(account.cookie_dir)
+        try:
+            shutil.copy2(str(cookie_file), str(dest / "cookies.json"))
+            shutil.copy2(str(state_file), str(dest / "login_state.json"))
+        except Exception:
+            self.remove_account(account.account_id)
+            shutil.rmtree(temp_path, ignore_errors=True)
+            return None
+
+        # 清理临时目录
+        shutil.rmtree(temp_path, ignore_errors=True)
+
+        # 激活账号
+        self.switch_account(account.account_id)
+        return account
+
+    def cleanup_temp_dir(self, temp_dir: str):
+        """清理临时 cookie 目录"""
+        temp_path = Path(temp_dir)
+        if temp_path.exists() and "_temp_" in temp_path.name:
+            shutil.rmtree(temp_path, ignore_errors=True)

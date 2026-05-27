@@ -151,7 +151,6 @@ class App {
         document.getElementById('browseDir').addEventListener('click', () => this.browseDirectory());
 
         // Scan login
-        document.getElementById('scanLoginBtn').addEventListener('click', () => this.startScanLogin());
         document.getElementById('checkLoginStatus').addEventListener('click', () => this.updateDouyinStatus());
 
         // Account management
@@ -523,67 +522,32 @@ class App {
     }
 
     async addAccount() {
-        // 先检查是否有登录正在进行
         try {
-            const status = await API.get('/api/douyin/login/status');
-            if (status.in_progress) {
-                this.toast.show('请等待当前登录完成后再添加', 'error');
+            const result = await API.post('/api/accounts/create-and-login');
+            if (result.error) {
+                this.toast.show(result.error, 'error');
                 return;
             }
-        } catch (e) { /* ignore */ }
-
-        const nickname = prompt('请输入账号昵称（可选）:');
-        let newAccountId = null;
-        try {
-            // 创建账号
-            const result = await API.post('/api/accounts/add', { nickname: nickname || '' });
-            if (!result.success) {
-                this.toast.show('添加账号失败', 'error');
-                return;
-            }
-            newAccountId = result.account.account_id;
-
-            // 立即启动扫码登录
-            const loginResult = await API.post('/api/accounts/login', { account_id: newAccountId });
-            if (loginResult.error) {
-                // 登录启动失败，删除刚创建的账号
-                await API.post('/api/accounts/remove', { account_id: newAccountId });
-                this.toast.show(loginResult.error, 'error');
-                await this.loadAccounts();
-                return;
-            }
-
             this.toast.show('浏览器已打开，请扫码登录');
-            await this.loadAccounts();
-
-            // 轮询登录结果，失败则删除账号
-            this._startAccountLoginPolling(newAccountId);
+            this._startCreateLoginPolling();
         } catch (error) {
-            // 出错时清理已创建的账号
-            if (newAccountId) {
-                await API.post('/api/accounts/remove', { account_id: newAccountId }).catch(() => {});
-                await this.loadAccounts();
-            }
-            this.toast.show('添加账号失败: ' + error.message, 'error');
+            this.toast.show('启动登录失败: ' + error.message, 'error');
         }
     }
 
-    _startAccountLoginPolling(accountId) {
+    _startCreateLoginPolling() {
         const pollInterval = setInterval(async () => {
             try {
-                const status = await API.get('/api/douyin/login/status');
-                if (status.result === true) {
+                const status = await API.get('/api/accounts/create-and-login/status');
+                if (status.result === 'success') {
                     clearInterval(pollInterval);
-                    this.toast.show('登录成功！');
+                    const name = status.account ? status.account.nickname : '新账号';
+                    this.toast.show(`登录成功！已添加账号: ${name}`);
                     await this.loadAccounts();
                     await this.updateDouyinStatus();
-                } else if (status.result === false) {
+                } else if (status.result === 'failed') {
                     clearInterval(pollInterval);
-                    // 登录失败，删除未授权的账号
-                    await API.post('/api/accounts/remove', { account_id: accountId });
-                    this.toast.show('登录失败或超时，已移除该账号', 'error');
-                    await this.loadAccounts();
-                    await this.updateDouyinStatus();
+                    this.toast.show('登录失败或已取消，未添加账号', 'error');
                 }
             } catch (error) {
                 clearInterval(pollInterval);
@@ -794,42 +758,6 @@ class App {
         } catch (error) {
             this.toast.show('打开文件夹失败', 'error');
         }
-    }
-
-    async startScanLogin() {
-        try {
-            const result = await API.post('/api/douyin/login');
-            if (result.error) {
-                this.toast.show(result.error, 'error');
-                return;
-            }
-            this.toast.show('浏览器已打开，请扫码登录');
-            this._startLoginPolling();
-        } catch (error) {
-            this.toast.show('启动登录失败: ' + error.message, 'error');
-        }
-    }
-
-    _startLoginPolling() {
-        const pollInterval = setInterval(async () => {
-            try {
-                const status = await API.get('/api/douyin/login/status');
-                if (status.result === true) {
-                    clearInterval(pollInterval);
-                    this.toast.show('登录成功！');
-                    await this.updateDouyinStatus();
-                } else if (status.result === false) {
-                    clearInterval(pollInterval);
-                    this.toast.show('登录失败或超时，请重试', 'error');
-                    await this.updateDouyinStatus();
-                }
-            } catch (error) {
-                clearInterval(pollInterval);
-                console.error('轮询登录状态失败:', error);
-            }
-        }, 3000);
-
-        setTimeout(() => clearInterval(pollInterval), 180000);
     }
 
     async updateSetting(key, value) {

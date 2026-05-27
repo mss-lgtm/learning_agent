@@ -30,6 +30,11 @@ browser_publisher = BrowserPublisher(cookie_dir=account_manager.get_active_cooki
 _login_in_progress = False
 _login_result = None
 
+# 创建并登录状态跟踪
+_create_login_in_progress = False
+_create_login_result = None
+_create_login_account = None
+
 # 记录应用启动
 logger.log_runtime("应用启动", "info")
 
@@ -350,6 +355,86 @@ def account_login():
 
     logger.log_auth("扫码登录", "启动")
     return jsonify({"success": True, "message": "浏览器已打开，请扫码登录"})
+
+
+@app.route("/api/accounts/create-and-login", methods=["POST"])
+def create_and_login():
+    """先扫码登录，成功后才创建账号"""
+    global _create_login_in_progress, _create_login_result, _create_login_account
+    global browser_publisher
+
+    if _create_login_in_progress:
+        return jsonify({"error": "登录正在进行中"}), 400
+
+    if _login_in_progress:
+        return jsonify({"error": "登录正在进行中"}), 400
+
+    # 创建临时 cookie 目录
+    temp_dir = account_manager.create_temp_cookie_dir()
+
+    _create_login_in_progress = True
+    _create_login_result = None
+    _create_login_account = None
+
+    def do_create_login():
+        global _create_login_in_progress, _create_login_result, _create_login_account
+        global browser_publisher
+        try:
+            # 用临时目录启动浏览器登录
+            temp_publisher = BrowserPublisher(cookie_dir=temp_dir)
+            success, username = temp_publisher.start_login_and_get_username()
+
+            if not success:
+                _create_login_result = "failed"
+                account_manager.cleanup_temp_dir(temp_dir)
+                logger.log_auth("添加账号", "失败", "登录超时或用户取消")
+                return
+
+            # 登录成功，确定用户名
+            if not username:
+                # Fallback：尝试从现有账号数量生成名称
+                count = len(account_manager.list_accounts()) + 1
+                username = f"抖音账号 {count}"
+                logger.log_auth("添加账号", "成功", f"用户名抓取失败，使用默认名称: {username}")
+            else:
+                logger.log_auth("添加账号", "成功", f"用户名: {username}")
+
+            # 升级临时目录为正式账号
+            account = account_manager.promote_temp_to_account(temp_dir, username)
+            if not account:
+                _create_login_result = "failed"
+                logger.log_auth("添加账号", "失败", "创建账号目录失败")
+                return
+
+            # 切换到新账号并刷新 browser_publisher
+            browser_publisher.close()
+            browser_publisher = BrowserPublisher(cookie_dir=account.cookie_dir)
+
+            _create_login_account = asdict(account)
+            _create_login_result = "success"
+
+        except Exception as e:
+            _create_login_result = "failed"
+            account_manager.cleanup_temp_dir(temp_dir)
+            logger.log_auth("添加账号", "失败", str(e))
+        finally:
+            _create_login_in_progress = False
+
+    thread = threading.Thread(target=do_create_login, daemon=True)
+    thread.start()
+
+    logger.log_auth("添加账号", "启动")
+    return jsonify({"success": True, "message": "浏览器已打开，请扫码登录"})
+
+
+@app.route("/api/accounts/create-and-login/status", methods=["GET"])
+def create_and_login_status():
+    """查询创建并登录的状态"""
+    return jsonify({
+        "in_progress": _create_login_in_progress,
+        "result": _create_login_result,
+        "account": _create_login_account,
+    })
 
 
 @app.route("/api/scheduler/status", methods=["GET"])

@@ -224,6 +224,40 @@ class BrowserPublisher:
                 continue
         return None
 
+    # ==================== 用户名抓取 ====================
+
+    def scrape_username(self) -> str:
+        """登录成功后从创作者平台页面抓取用户名，失败返回空字符串"""
+        if not self._driver:
+            return ""
+        try:
+            # 多种选择器尝试获取用户名
+            selectors = [
+                (By.CSS_SELECTOR, ".user-name"),
+                (By.CSS_SELECTOR, "[class*='userName']"),
+                (By.CSS_SELECTOR, "[class*='user-name']"),
+                (By.CSS_SELECTOR, "[class*='nickname']"),
+                (By.XPATH, "//span[contains(@class,'name')]"),
+                (By.CSS_SELECTOR, ".avatar-name"),
+                (By.CSS_SELECTOR, "[class*='Avatar'] + span"),
+                (By.CSS_SELECTOR, "[class*='avatar'] + *"),
+            ]
+            for by, value in selectors:
+                try:
+                    el = WebDriverWait(self._driver, 5).until(
+                        EC.presence_of_element_located((by, value))
+                    )
+                    text = el.text.strip()
+                    if text and len(text) < 50:
+                        return text
+                except (TimeoutException, WebDriverException):
+                    continue
+
+            # 最后尝试从页面 body 文本中提取（备选）
+            return ""
+        except Exception:
+            return ""
+
     # ==================== 扫码登录 ====================
 
     def start_login(self) -> bool:
@@ -263,6 +297,41 @@ class BrowserPublisher:
             self._save_login_state(False)
             self.close()
             return False
+
+    def start_login_and_get_username(self) -> tuple:
+        """扫码登录并抓取用户名。返回 (success: bool, username: str)"""
+        try:
+            driver = self._init_driver(headless=False)
+            driver.get(self.LOGIN_URL)
+            time.sleep(3)
+
+            start_time = time.time()
+            timeout = 120
+
+            while time.time() - start_time < timeout:
+                try:
+                    current_url = driver.current_url
+                    if "creator.douyin.com/creator-micro" in current_url:
+                        self._save_cookies()
+                        self._save_login_state(True)
+                        time.sleep(2)
+                        # 抓取用户名
+                        username = self.scrape_username()
+                        self.close()
+                        return True, username
+                except WebDriverException:
+                    pass
+                time.sleep(2)
+
+            self._save_login_state(False)
+            self.close()
+            return False, ""
+
+        except Exception as e:
+            print(f"登录失败: {e}")
+            self._save_login_state(False)
+            self.close()
+            return False, ""
 
     # ==================== 视频上传 ====================
 

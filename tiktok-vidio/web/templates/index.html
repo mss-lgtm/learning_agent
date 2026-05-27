@@ -370,15 +370,6 @@
                                         </svg>
                                         添加账号
                                     </button>
-                                    <button class="btn btn-secondary" id="scanLoginBtn">
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <rect x="3" y="3" width="7" height="7"/>
-                                            <rect x="14" y="3" width="7" height="7"/>
-                                            <rect x="3" y="14" width="7" height="7"/>
-                                            <rect x="14" y="14" width="7" height="7"/>
-                                        </svg>
-                                        扫码登录
-                                    </button>
                                     <button class="btn btn-secondary" id="checkLoginStatus">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <polyline points="23 4 23 10 17 10"/>
@@ -391,9 +382,10 @@
                                     <p>说明：</p>
                                     <ul style="margin-left: 16px; margin-top: 4px;">
                                         <li>支持多账号切换，每个账号独立保存登录状态</li>
-                                        <li>点击「扫码登录」会打开 Chrome 浏览器</li>
+                                        <li>点击「添加账号」会打开 Chrome 浏览器进行扫码登录</li>
                                         <li>使用抖音 APP 扫描页面上的二维码完成登录</li>
-                                        <li>登录成功后浏览器会自动关闭，Cookie 将保存到本地</li>
+                                        <li>登录成功后自动获取用户名并创建账号</li>
+                                        <li>登录失败或关闭浏览器则不会添加账号</li>
                                     </ul>
                                 </div>
                             </div>
