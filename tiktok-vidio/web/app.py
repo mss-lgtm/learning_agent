@@ -15,6 +15,7 @@ from core.browser_publisher import BrowserPublisher
 from core.scheduler import TaskScheduler
 from core.publish_tracker import PublishTracker
 from core.account_manager import AccountManager
+from core.video_meta import VideoMetaManager
 from core.logger import logger
 
 app = Flask(__name__)
@@ -25,6 +26,19 @@ scheduler = TaskScheduler()
 publish_tracker = PublishTracker()
 account_manager = AccountManager()
 browser_publisher = BrowserPublisher(cookie_dir=account_manager.get_active_cookie_dir())
+
+# 视频元数据管理（延迟初始化，依赖视频目录配置）
+_video_meta: VideoMetaManager | None = None
+
+
+def get_video_meta() -> VideoMetaManager | None:
+    global _video_meta
+    directory = config_manager.config.video_directory
+    if not directory:
+        return None
+    if _video_meta is None or str(_video_meta.video_dir) != directory:
+        _video_meta = VideoMetaManager(directory)
+    return _video_meta
 
 # 登录状态跟踪
 _login_in_progress = False
@@ -101,19 +115,29 @@ def get_videos():
     scanner = VideoScanner(directory)
     videos = scanner.scan()
 
-    return jsonify({
-        "videos": [
-            {
-                "path": v.path.replace("\\", "/"),
-                "filename": v.filename,
-                "size": v.size,
-                "size_str": v.size_str,
-                "modified_time": v.modified_str,
-                "created_time": v.created_str,
-            }
-            for v in videos
-        ]
-    })
+    # 确保元数据条目存在并批量截取封面
+    meta = get_video_meta()
+    video_list = []
+    for v in videos:
+        vpath = v.path.replace("\\", "/")
+        vdata = {
+            "path": vpath,
+            "filename": v.filename,
+            "size": v.size,
+            "size_str": v.size_str,
+            "modified_time": v.modified_str,
+            "created_time": v.created_str,
+        }
+        if meta:
+            entry = meta.ensure_entry(v.filename, v.filename.rsplit(".", 1)[0])
+            if not entry.get("cover"):
+                cover = meta.extract_cover(vpath, v.filename)
+                if cover:
+                    meta.update(v.filename, cover=cover)
+            vdata["meta"] = meta.get(v.filename)
+        video_list.append(vdata)
+
+    return jsonify({"videos": video_list})
 
 
 @app.route("/api/video/preview", methods=["GET"])
@@ -163,6 +187,46 @@ def video_preview():
     rv.headers.add("Accept-Ranges", "bytes")
     rv.headers.add("Content-Length", str(file_size))
     return rv
+
+
+@app.route("/api/video/cover", methods=["GET"])
+def video_cover():
+    """返回视频封面图片"""
+    cover_path = request.args.get("path", "")
+    if not cover_path:
+        return "", 404
+
+    file_path = Path(cover_path)
+    if not file_path.exists():
+        return "", 404
+
+    return send_file(str(file_path), mimetype="image/jpeg")
+
+
+@app.route("/api/video/meta", methods=["POST"])
+def update_video_meta():
+    """更新视频元数据（标题、描述、标签）"""
+    data = request.json
+    filename = data.get("filename", "")
+    if not filename:
+        return jsonify({"error": "未指定文件名"}), 400
+
+    meta = get_video_meta()
+    if not meta:
+        return jsonify({"error": "元数据管理未初始化"}), 500
+
+    fields = {}
+    if "title" in data:
+        fields["title"] = data["title"]
+    if "description" in data:
+        fields["description"] = data["description"]
+    if "tags" in data:
+        fields["tags"] = data["tags"]
+
+    if fields:
+        meta.update(filename, **fields)
+
+    return jsonify({"success": True, "meta": meta.get(filename)})
 
 
 @app.route("/api/douyin/status", methods=["GET"])
@@ -217,6 +281,7 @@ def publish_video():
     video_path = data.get("video_path", "").replace("\\", "/")
     title = data.get("title", "")
     description = data.get("description", "")
+    tags = data.get("tags", "")
     is_manual = data.get("is_manual", True)
 
     if not video_path:
@@ -229,8 +294,21 @@ def publish_video():
         return jsonify({"error": "该视频已通过定时任务发布", "skipped": True}), 400
 
     if not browser_publisher.is_authenticated():
-        logger.log_publish(title, "失败", "未授权")
+        logger.log_publish(title or video_name, "失败", "未授权")
         return jsonify({"error": "未授权，请先扫码登录抖音"}), 400
+
+    # 更新视频元数据（手动发布时用户可能修改了标题/描述/标签）
+    meta = get_video_meta()
+    if meta and is_manual:
+        meta.update(video_name, title=title, description=description, tags=tags)
+
+    # 如果标题为空，从元数据或文件名获取
+    if not title and meta:
+        entry = meta.get(video_name)
+        if entry:
+            title = entry.get("title", video_name)
+    if not title:
+        title = video_name
 
     result = browser_publisher.upload_video(video_path, title, description)
 
@@ -240,6 +318,11 @@ def publish_video():
 
     publish_type = "manual" if is_manual else "scheduled"
     publish_tracker.record_publish(video_name, publish_type)
+
+    # 更新发布时间
+    if meta:
+        meta.update_published_at(video_name)
+
     logger.log_publish(video_name, "成功")
     return jsonify({"success": True, "result": result})
 
@@ -459,12 +542,24 @@ def start_scheduler():
                 return
 
             if browser_publisher.is_authenticated():
-                logger.log_scheduler("执行", f"发布视频: {video.filename}")
-                result = browser_publisher.upload_video(video.path.replace("\\", "/"), video.filename, "")
+                # 从元数据读取标题、描述
+                title = video.filename
+                description = ""
+                meta = get_video_meta()
+                if meta:
+                    entry = meta.get(video.filename)
+                    if entry:
+                        title = entry.get("title") or video.filename
+                        description = entry.get("description", "")
+
+                logger.log_scheduler("执行", f"发布视频: {title}")
+                result = browser_publisher.upload_video(video.path.replace("\\", "/"), title, description)
                 if "error" in result:
                     logger.log_publish(video.filename, "失败", result["error"])
                 else:
                     publish_tracker.record_publish(video.filename, "scheduled")
+                    if meta:
+                        meta.update_published_at(video.filename)
                     logger.log_publish(video.filename, "成功")
             else:
                 logger.log_scheduler("执行", "未授权，跳过发布")

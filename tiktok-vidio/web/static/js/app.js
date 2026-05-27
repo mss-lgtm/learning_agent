@@ -297,15 +297,19 @@ class App {
         grid.innerHTML = this.videos.map(video => {
             const pubBadge = this.publishedRecords && this.publishedRecords[video.filename]
                 ? '<span class="published-badge">已发布</span>' : '';
+            const meta = video.meta || {};
+            const displayName = meta.title || video.filename;
+            const coverHtml = meta.cover
+                ? `<img class="video-card-cover" src="/api/video/cover?path=${encodeURIComponent(meta.cover)}" alt="" loading="lazy">`
+                : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            const coverClass = meta.cover ? 'with-cover' : '';
             return `
             <div class="video-card" data-path="${this._escapeAttr(video.path)}" data-filename="${this._escapeAttr(video.filename)}" data-size="${this._escapeAttr(video.size_str)}">
-                <div class="video-thumbnail">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
+                <div class="video-thumbnail ${coverClass}">
+                    ${coverHtml}
                 </div>
                 <div class="video-card-info">
-                    <div class="video-card-name" title="${this._escapeAttr(video.filename)}">${this._escapeHtml(video.filename)}${pubBadge}</div>
+                    <div class="video-card-name" title="${this._escapeAttr(video.filename)}">${this._escapeHtml(displayName)}${pubBadge}</div>
                     <div class="video-card-meta">
                         <span>${video.size_str}</span>
                         <span>${video.modified_time}</span>
@@ -322,22 +326,26 @@ class App {
         const container = document.getElementById('recentVideos');
         const recent = this.videos.slice(0, 5);
 
-        container.innerHTML = recent.map(video => `
+        container.innerHTML = recent.map(video => {
+            const meta = video.meta || {};
+            const displayName = meta.title || video.filename;
+            return `
             <div class="video-item" data-path="${this._escapeAttr(video.path)}" data-filename="${this._escapeAttr(video.filename)}">
                 <div class="video-icon">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
+                    ${meta.cover
+                        ? `<img src="/api/video/cover?path=${encodeURIComponent(meta.cover)}" style="width:36px;height:36px;border-radius:6px;object-fit:cover;" alt="">`
+                        : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>`
+                    }
                 </div>
                 <div class="video-info">
-                    <div class="video-name">${this._escapeHtml(video.filename)}</div>
+                    <div class="video-name">${this._escapeHtml(displayName)}</div>
                     <div class="video-meta">${video.size_str} · ${video.modified_time}</div>
                 </div>
                 <div class="video-action">
                     <button class="btn btn-secondary btn-sm">发布</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
 
         if (recent.length === 0) {
             container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 20px;">暂无视频</div>';
@@ -353,15 +361,19 @@ class App {
         grid.innerHTML = filtered.map(video => {
             const pubBadge = this.publishedRecords && this.publishedRecords[video.filename]
                 ? '<span class="published-badge">已发布</span>' : '';
+            const meta = video.meta || {};
+            const displayName = meta.title || video.filename;
+            const coverHtml = meta.cover
+                ? `<img class="video-card-cover" src="/api/video/cover?path=${encodeURIComponent(meta.cover)}" alt="" loading="lazy">`
+                : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>`;
+            const coverClass = meta.cover ? 'with-cover' : '';
             return `
             <div class="video-card" data-path="${this._escapeAttr(video.path)}" data-filename="${this._escapeAttr(video.filename)}" data-size="${this._escapeAttr(video.size_str)}">
-                <div class="video-thumbnail">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                        <polygon points="5 3 19 12 5 21 5 3"/>
-                    </svg>
+                <div class="video-thumbnail ${coverClass}">
+                    ${coverHtml}
                 </div>
                 <div class="video-card-info">
-                    <div class="video-card-name" title="${this._escapeAttr(video.filename)}">${this._escapeHtml(video.filename)}${pubBadge}</div>
+                    <div class="video-card-name" title="${this._escapeAttr(video.filename)}">${this._escapeHtml(displayName)}${pubBadge}</div>
                     <div class="video-card-meta">
                         <span>${video.size_str}</span>
                         <span>${video.modified_time}</span>
@@ -376,8 +388,26 @@ class App {
 
     openPublishModal(videoPath = '', filename = '') {
         document.getElementById('publishVideoPath').value = videoPath;
-        document.getElementById('publishTitle').value = filename;
-        document.getElementById('publishDesc').value = '';
+        document.getElementById('publishVideoFilename').value = filename;
+
+        // 从元数据预填字段
+        const video = this.videos.find(v => v.filename === filename);
+        const meta = video ? video.meta : null;
+
+        document.getElementById('publishTitle').value = (meta && meta.title) || filename;
+        document.getElementById('publishDesc').value = (meta && meta.description) || '';
+        document.getElementById('publishTags').value = (meta && meta.tags) || '';
+
+        // 封面预览
+        const coverPreview = document.getElementById('publishCoverPreview');
+        const coverImg = document.getElementById('publishCoverImg');
+        if (meta && meta.cover) {
+            coverImg.src = `/api/video/cover?path=${encodeURIComponent(meta.cover)}`;
+            coverPreview.style.display = 'block';
+        } else {
+            coverPreview.style.display = 'none';
+        }
+
         document.getElementById('publishModal').classList.add('active');
     }
 
@@ -586,16 +616,13 @@ class App {
 
     async publishVideo() {
         const videoPath = document.getElementById('publishVideoPath').value;
+        const filename = document.getElementById('publishVideoFilename').value;
         const title = document.getElementById('publishTitle').value;
         const description = document.getElementById('publishDesc').value;
+        const tags = document.getElementById('publishTags').value;
 
         if (!videoPath) {
             this.toast.show('请先选择要发布的视频', 'error');
-            return;
-        }
-
-        if (!title) {
-            this.toast.show('请输入视频标题', 'error');
             return;
         }
 
@@ -607,12 +634,14 @@ class App {
         try {
             const result = await API.post('/api/publish', {
                 video_path: videoPath,
-                title: title,
-                description: description
+                title: title || filename,
+                description: description,
+                tags: tags
             });
 
             this.toast.show('视频发布成功！');
             this.closePublishModal();
+            await this.loadVideos();
         } catch (error) {
             this.toast.show('发布失败: ' + error.message, 'error');
         } finally {
