@@ -1,0 +1,54 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="600" height="360" viewBox="0 0 600 360">
+  <rect width="600" height="360" fill="#1a1a2e" rx="8"/>
+  <rect x="0" y="0" width="600" height="36" fill="#16213e" rx="8"/>
+  <rect x="0" y="28" width="600" height="8" fill="#16213e"/>
+  <circle cx="20" cy="18" r="6" fill="#ff5f56"/>
+  <circle cx="40" cy="18" r="6" fill="#ffbd2e"/>
+  <circle cx="60" cy="18" r="6" fill="#27c93f"/>
+  <text x="300" y="22" text-anchor="middle" fill="#8892b0" font-size="12" font-family="sans-serif">open.douyin.com - 权限管理</text>
+
+  <!-- App header -->
+  <text x="180" y="65" fill="#ccd6f6" font-size="16" font-weight="bold" font-family="sans-serif">视频自动发布助手 - 权限管理</text>
+
+  <!-- Tabs -->
+  <text x="180" y="95" fill="#8892b0" font-size="13" font-family="sans-serif">应用信息</text>
+  <text x="280" y="95" fill="#8892b0" font-size="13" font-family="sans-serif">凭证信息</text>
+  <rect x="380" y="80" width="120" height="30" rx="4" fill="rgba(254,44,85,0.15)"/>
+  <text x="440" y="101" text-anchor="middle" fill="#FE2C55" font-size="13" font-weight="bold" font-family="sans-serif">权限管理</text>
+
+  <!-- Permission list -->
+  <rect x="180" y="120" width="400" height="200" rx="8" fill="#0f3460" stroke="#1a1a2e" stroke-width="1"/>
+
+  <!-- Permission item 1 -->
+  <rect x="195" y="135" width="370" height="45" rx="6" fill="#1a1a2e"/>
+  <rect x="205" y="145" width="80" height="24" rx="12" fill="rgba(37,244,238,0.15)"/>
+  <text x="245" y="163" text-anchor="middle" fill="#25F4EE" font-size="11" font-family="monospace">video.create</text>
+  <text x="300" y="163" fill="#ccd6f6" font-size="12" font-family="sans-serif">创建视频 - 发布视频到抖音</text>
+  <rect x="490" y="145" width="60" height="24" rx="12" fill="rgba(0,230,118,0.15)"/>
+  <text x="520" y="163" text-anchor="middle" fill="#00E676" font-size="11" font-family="sans-serif">已申请</text>
+
+  <!-- Permission item 2 -->
+  <rect x="195" y="190" width="370" height="45" rx="6" fill="#1a1a2e"/>
+  <rect x="205" y="200" width="80" height="24" rx="12" fill="rgba(37,244,238,0.15)"/>
+  <text x="245" y="218" text-anchor="middle" fill="#25F4EE" font-size="11" font-family="monospace">video.data</text>
+  <text x="300" y="218" fill="#ccd6f6" font-size="12" font-family="sans-serif">视频数据 - 读取视频信息</text>
+  <rect x="490" y="200" width="60" height="24" rx="12" fill="rgba(0,230,118,0.15)"/>
+  <text x="520" y="218" text-anchor="middle" fill="#00E676" font-size="11" font-family="sans-serif">已申请</text>
+
+  <!-- Permission item 3 -->
+  <rect x="195" y="245" width="370" height="45" rx="6" fill="#1a1a2e"/>
+  <rect x="205" y="255" width="80" height="24" rx="12" fill="rgba(37,244,238,0.15)"/>
+  <text x="245" y="273" text-anchor="middle" fill="#25F4EE" font-size="11" font-family="monospace">user.info</text>
+  <text x="300" y="273" fill="#ccd6f6" font-size="12" font-family="sans-serif">用户信息 - 获取用户基本信息</text>
+  <rect x="490" y="255" width="60" height="24" rx="12" fill="rgba(255,152,0,0.15)"/>
+  <text x="520" y="273" text-anchor="middle" fill="#FF9800" font-size="11" font-family="sans-serif">待审核</text>
+
+  <!-- Highlight -->
+  <rect x="190" y="130" width="380" height="55" rx="8" fill="none" stroke="#25F4EE" stroke-width="2" stroke-dasharray="4,2"/>
+
+  <!-- Note -->
+  <rect x="180" y="330" width="400" height="25" rx="6" fill="rgba(255,152,0,0.1)" stroke="#FF9800" stroke-width="1"/>
+  <text x="380" y="348" text-anchor="middle" fill="#FF9800" font-size="11" font-family="sans-serif">video.create 权限是发布视频的必要权限，必须申请</text>
+
+  <text x="300" y="355" text-anchor="middle" fill="#8892b0" font-size="11" font-family="sans-serif">第五步：在权限管理页面申请 video.create 等必要权限</text>
+</svg>

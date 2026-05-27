@@ -1,0 +1,112 @@
+╔══════════════════════════════════════════════════════════════╗
+║           抖音视频自动发布工具 - 快速入门指南               ║
+╚══════════════════════════════════════════════════════════════╝
+
+【第一步：环境准备】
+
+  1. 安装 Python 3.8 或更高版本
+     - 下载地址：https://www.python.org/downloads/
+     - ⚠️ 安装时务必勾选 "Add Python to PATH"
+
+  2. 验证安装
+     - 按 Win+R，输入 cmd，回车
+     - 输入：python --version
+     - 应显示 Python 版本号
+
+【第二步：一键构建】
+
+  方法A：最简单（推荐）
+  ━━━━━━━━━━━━━━━━━━━━
+  1. 打开文件资源管理器
+  2. 进入 D:\AIproject\tiptok-vidio 目录
+  3. 双击运行 make_all.bat
+  4. 等待完成（约2-5分钟）
+  5. 完成后自动打开 dist 文件夹
+
+  方法B：分步执行
+  ━━━━━━━━━━━━━━━
+  1. 按 Win+R，输入 cmd，回车
+  2. 输入以下命令：
+
+     cd /d D:\AIproject\tiptok-vidio
+     pip install -r requirements.txt
+     python run_web.py
+
+  3. 浏览器自动打开 http://127.0.0.1:5000
+
+【第三步：生成安装包】
+
+  简易安装包（无需额外工具）
+  ━━━━━━━━━━━━━━━━━━━━━━━
+  1. 双击运行 build_web.bat
+  2. 找到 installer\install_simple.bat
+  3. 右键点击 → 以管理员身份运行
+  4. 按提示完成安装
+
+  专业安装包（需要Inno Setup）
+  ━━━━━━━━━━━━━━━━━━━━━━━━━
+  1. 双击运行 build_installer.bat
+  2. 如果提示需要Inno Setup：
+     - 双击运行 installer\download_inno.ps1
+     - 或手动下载：https://jrsoftware.org/isdl.php
+  3. 安装Inno Setup后重新运行 build_installer.bat
+
+【第四步：安装部署】
+
+  在本机安装
+  ━━━━━━━━━━
+  - 双击运行安装包
+  - 或以管理员身份运行 install_simple.bat
+
+  在其他电脑部署
+  ━━━━━━━━━━━━
+  - 方法1：复制 dist 文件夹到目标电脑，双击exe运行
+  - 方法2：将安装包复制到目标电脑，双击安装
+
+【常用操作】
+
+  运行程序（开发模式）
+  ━━━━━━━━━━━━━━━━━━
+  命令行输入：
+  python run_web.py
+
+  打包程序
+  ━━━━━━━
+  双击运行：
+  build_web.bat
+
+  一键构建
+  ━━━━━━━
+  双击运行：
+  make_all.bat
+
+【文件说明】
+
+  make_all.bat          一键构建脚本（推荐）
+  build_web.bat         打包Web版本
+  build.bat             打包桌面版本
+  build_installer.bat   生成专业安装包
+  run_web.py            启动Web版本
+  main.py               启动桌面版本
+
+【常见问题】
+
+  Q: 提示"python不是内部命令"
+  A: Python未添加到PATH，重新安装并勾选"Add Python to PATH"
+
+  Q: pip install 失败
+  A: 使用国内镜像：
+     pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple
+
+  Q: 安装包被杀毒软件拦截
+  A: 临时关闭实时防护，或添加到白名单
+
+  Q: 程序无法启动
+  A: 检查端口5000是否被占用，或重启电脑后重试
+
+【详细文档】
+
+  完整操作手册：操作手册.md
+  安装包说明：installer\README.md
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

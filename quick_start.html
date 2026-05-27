@@ -1,0 +1,495 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>快速入门 - 抖音视频自动发布工具</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #FE2C55 0%, #FF6B8A 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            opacity: 0.9;
+            font-size: 16px;
+        }
+
+        .content {
+            padding: 40px;
+        }
+
+        .step {
+            margin-bottom: 30px;
+            padding: 25px;
+            background: #f8f9fa;
+            border-radius: 12px;
+            border-left: 4px solid #FE2C55;
+        }
+
+        .step-number {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            background: #FE2C55;
+            color: white;
+            border-radius: 50%;
+            text-align: center;
+            line-height: 30px;
+            font-weight: bold;
+            margin-right: 10px;
+        }
+
+        .step h3 {
+            display: inline;
+            font-size: 18px;
+            color: #333;
+        }
+
+        .step-content {
+            margin-top: 15px;
+            padding-left: 40px;
+        }
+
+        .step-content p {
+            margin-bottom: 10px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .code-block {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            padding: 15px 20px;
+            border-radius: 8px;
+            font-family: "Consolas", "Monaco", monospace;
+            font-size: 14px;
+            margin: 10px 0;
+            overflow-x: auto;
+        }
+
+        .code-block .comment {
+            color: #6a9955;
+        }
+
+        .code-block .command {
+            color: #569cd6;
+        }
+
+        .highlight {
+            background: #fff3cd;
+            padding: 12px 15px;
+            border-radius: 6px;
+            border-left: 4px solid #ffc107;
+            margin: 10px 0;
+        }
+
+        .highlight strong {
+            color: #856404;
+        }
+
+        .success-box {
+            background: #d4edda;
+            padding: 12px 15px;
+            border-radius: 6px;
+            border-left: 4px solid #28a745;
+            margin: 10px 0;
+        }
+
+        .success-box strong {
+            color: #155724;
+        }
+
+        .warning-box {
+            background: #f8d7da;
+            padding: 12px 15px;
+            border-radius: 6px;
+            border-left: 4px solid #dc3545;
+            margin: 10px 0;
+        }
+
+        .warning-box strong {
+            color: #721c24;
+        }
+
+        .info-box {
+            background: #d1ecf1;
+            padding: 12px 15px;
+            border-radius: 6px;
+            border-left: 4px solid #17a2b8;
+            margin: 10px 0;
+        }
+
+        .info-box strong {
+            color: #0c5460;
+        }
+
+        .files-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+
+        .files-table th,
+        .files-table td {
+            padding: 10px 15px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+
+        .files-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .files-table td {
+            color: #555;
+        }
+
+        .files-table code {
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        .method-card {
+            background: white;
+            border: 2px solid #e9ecef;
+            border-radius: 10px;
+            padding: 20px;
+            margin: 15px 0;
+            transition: all 0.3s;
+        }
+
+        .method-card:hover {
+            border-color: #FE2C55;
+            box-shadow: 0 5px 15px rgba(254, 44, 85, 0.2);
+        }
+
+        .method-card h4 {
+            color: #FE2C55;
+            margin-bottom: 10px;
+        }
+
+        .method-card .badge {
+            display: inline-block;
+            background: #FE2C55;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            margin-left: 10px;
+        }
+
+        .method-card .badge.green {
+            background: #28a745;
+        }
+
+        .method-card .badge.blue {
+            background: #007bff;
+        }
+
+        .faq {
+            margin-top: 30px;
+        }
+
+        .faq-item {
+            margin-bottom: 15px;
+            border: 1px solid #e9ecef;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+
+        .faq-question {
+            background: #f8f9fa;
+            padding: 15px 20px;
+            font-weight: 600;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .faq-answer {
+            padding: 15px 20px;
+            color: #555;
+            line-height: 1.6;
+        }
+
+        .footer {
+            background: #f8f9fa;
+            padding: 20px 40px;
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .emoji {
+            font-size: 20px;
+            margin-right: 5px;
+        }
+
+        ul {
+            margin-left: 20px;
+            margin-bottom: 10px;
+        }
+
+        li {
+            margin-bottom: 5px;
+            color: #555;
+        }
+
+        a {
+            color: #FE2C55;
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🎬 抖音视频自动发布工具</h1>
+            <p>快速入门指南 - 从零开始，5分钟上手</p>
+        </div>
+
+        <div class="content">
+            <!-- 第一步：环境准备 -->
+            <div class="step">
+                <span class="step-number">1</span>
+                <h3>环境准备</h3>
+                <div class="step-content">
+                    <p><strong>安装 Python</strong></p>
+                    <ul>
+                        <li>访问 <a href="https://www.python.org/downloads/" target="_blank">python.org</a> 下载 Python 3.8+</li>
+                        <li>运行安装程序</li>
+                    </ul>
+
+                    <div class="warning-box">
+                        <strong>⚠️ 重要：</strong>安装时务必勾选 <strong>"Add Python to PATH"</strong> 选项！
+                    </div>
+
+                    <p><strong>验证安装</strong></p>
+                    <p>按 <code>Win + R</code>，输入 <code>cmd</code>，回车，然后输入：</p>
+                    <div class="code-block">
+                        <span class="command">python</span> --version
+                    </div>
+                    <p>应显示类似：<code>Python 3.10.11</code></p>
+                </div>
+            </div>
+
+            <!-- 第二步：一键构建 -->
+            <div class="step">
+                <span class="step-number">2</span>
+                <h3>一键构建</h3>
+                <div class="step-content">
+                    <div class="method-card">
+                        <h4>方法A：最简单（推荐新手） <span class="badge green">推荐</span></h4>
+                        <p>1. 打开文件资源管理器</p>
+                        <p>2. 进入 <code>D:\AIproject\tiptok-vidio</code> 目录</p>
+                        <p>3. 双击运行 <code>make_all.bat</code></p>
+                        <p>4. 等待完成（约2-5分钟）</p>
+                        <p>5. 完成后自动打开 <code>dist</code> 文件夹</p>
+
+                        <div class="success-box">
+                            <strong>✅ 完成后：</strong>可执行文件位于 <code>dist\TikTokPublisherWeb.exe</code>
+                        </div>
+                    </div>
+
+                    <div class="method-card">
+                        <h4>方法B：分步执行 <span class="badge blue">进阶</span></h4>
+                        <p>按 <code>Win + R</code>，输入 <code>cmd</code>，回车，然后依次输入：</p>
+                        <div class="code-block">
+                            <span class="comment"># 进入项目目录</span><br>
+                            <span class="command">cd /d</span> D:\AIproject\tiptok-vidio<br><br>
+                            <span class="comment"># 安装依赖（只需执行一次）</span><br>
+                            <span class="command">pip install -r</span> requirements.txt<br><br>
+                            <span class="comment"># 运行Web版本</span><br>
+                            <span class="command">python</span> run_web.py
+                        </div>
+                        <p>浏览器会自动打开 <a href="http://127.0.0.1:5000" target="_blank">http://127.0.0.1:5000</a></p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第三步：生成安装包 -->
+            <div class="step">
+                <span class="step-number">3</span>
+                <h3>生成安装包</h3>
+                <div class="step-content">
+                    <div class="method-card">
+                        <h4>简易安装包 <span class="badge green">推荐</span></h4>
+                        <p>无需安装额外工具，使用Windows自带功能。</p>
+                        <p><strong>步骤：</strong></p>
+                        <ol style="margin-left: 20px; margin-bottom: 10px;">
+                            <li>双击运行 <code>build_web.bat</code> 打包程序</li>
+                            <li>找到 <code>installer\install_simple.bat</code></li>
+                            <li><strong>右键点击</strong> → <strong>以管理员身份运行</strong></li>
+                            <li>按照提示完成安装</li>
+                        </ol>
+
+                        <div class="info-box">
+                            <strong>📦 包含功能：</strong>桌面快捷方式、开始菜单、开机自启动、卸载程序
+                        </div>
+                    </div>
+
+                    <div class="method-card">
+                        <h4>专业安装包 <span class="badge">需要Inno Setup</span></h4>
+                        <p>使用Inno Setup创建专业的Windows安装程序。</p>
+                        <p><strong>步骤：</strong></p>
+                        <ol style="margin-left: 20px; margin-bottom: 10px;">
+                            <li>双击运行 <code>installer\download_inno.ps1</code> 安装Inno Setup</li>
+                            <li>双击运行 <code>build_installer.bat</code></li>
+                            <li>安装包位于 <code>dist\installer\TikTokPublisher_Setup_1.0.0.exe</code></li>
+                        </ol>
+                    </div>
+                </div>
+            </div>
+
+            <!-- 第四步：安装部署 -->
+            <div class="step">
+                <span class="step-number">4</span>
+                <h3>安装部署</h3>
+                <div class="step-content">
+                    <p><strong>在本机安装：</strong></p>
+                    <ul>
+                        <li>双击运行安装包，按向导完成安装</li>
+                        <li>或以管理员身份运行 <code>install_simple.bat</code></li>
+                    </ul>
+
+                    <p><strong>在其他电脑部署：</strong></p>
+                    <ul>
+                        <li><strong>方法1：</strong>复制 <code>dist</code> 文件夹到目标电脑，双击exe运行</li>
+                        <li><strong>方法2：</strong>将安装包复制到目标电脑，双击安装</li>
+                    </ul>
+
+                    <div class="success-box">
+                        <strong>✅ 安装完成后：</strong>桌面会有快捷方式，程序会开机自动启动
+                    </div>
+                </div>
+            </div>
+
+            <!-- 常用脚本说明 -->
+            <div class="step">
+                <span class="step-number">5</span>
+                <h3>常用脚本说明</h3>
+                <div class="step-content">
+                    <table class="files-table">
+                        <thead>
+                            <tr>
+                                <th>脚本文件</th>
+                                <th>功能</th>
+                                <th>运行方式</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>make_all.bat</code></td>
+                                <td>一键构建所有内容</td>
+                                <td>双击运行</td>
+                            </tr>
+                            <tr>
+                                <td><code>build_web.bat</code></td>
+                                <td>打包Web版本</td>
+                                <td>双击运行</td>
+                            </tr>
+                            <tr>
+                                <td><code>build_installer.bat</code></td>
+                                <td>生成专业安装包</td>
+                                <td>双击运行</td>
+                            </tr>
+                            <tr>
+                                <td><code>install_simple.bat</code></td>
+                                <td>简易安装脚本</td>
+                                <td><strong>右键→管理员运行</strong></td>
+                            </tr>
+                            <tr>
+                                <td><code>run_web.py</code></td>
+                                <td>启动Web版本</td>
+                                <td>命令行：<code>python run_web.py</code></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- 常见问题 -->
+            <div class="step">
+                <span class="step-number">?</span>
+                <h3>常见问题</h3>
+                <div class="step-content">
+                    <div class="faq-item">
+                        <div class="faq-question">Q: 运行脚本时提示"python不是内部或外部命令"</div>
+                        <div class="faq-answer">
+                            <strong>原因：</strong>Python未添加到系统PATH<br>
+                            <strong>解决：</strong>重新安装Python，安装时勾选 "Add Python to PATH"
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">Q: pip install 失败</div>
+                        <div class="faq-answer">
+                            <strong>原因：</strong>网络问题<br>
+                            <strong>解决：</strong>使用国内镜像源：<br>
+                            <code>pip install -r requirements.txt -i https://pypi.tuna.tsinghua.edu.cn/simple</code>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">Q: 安装包被杀毒软件拦截</div>
+                        <div class="faq-answer">
+                            <strong>原因：</strong>安装包会修改注册表和创建自启动项<br>
+                            <strong>解决：</strong>临时关闭实时防护，或添加到白名单
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <div class="faq-question">Q: 程序无法启动</div>
+                        <div class="faq-answer">
+                            <strong>可能原因：</strong>端口5000被占用<br>
+                            <strong>解决：</strong>重启电脑后重试，或修改端口号
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>📖 详细文档请查看 <a href="操作手册.md">操作手册.md</a></p>
+            <p style="margin-top: 10px;">最后更新：2024年</p>
+        </div>
+    </div>
+</body>
+</html>

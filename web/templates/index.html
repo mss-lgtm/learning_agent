@@ -1,0 +1,726 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>抖音视频自动发布工具</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+    <!-- 背景动画 -->
+    <div class="bg-gradient"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-particles" id="particles"></div>
+
+    <!-- 主容器 -->
+    <div class="app-container">
+        <!-- 侧边栏 -->
+        <aside class="sidebar">
+            <div class="logo">
+                <div class="logo-icon">
+                    <svg viewBox="0 0 40 40" fill="none">
+                        <rect width="40" height="40" rx="10" fill="url(#logo-gradient)"/>
+                        <text x="12" y="28" font-size="20" fill="white" font-weight="bold">抖</text>
+                        <defs>
+                            <linearGradient id="logo-gradient" x1="0" y1="0" x2="40" y2="40">
+                                <stop stop-color="#FE2C55"/>
+                                <stop offset="1" stop-color="#25F4EE"/>
+                            </linearGradient>
+                        </defs>
+                    </svg>
+                </div>
+                <h1>TikTok<br><span>Publisher</span></h1>
+            </div>
+
+            <nav class="nav-menu">
+                <a href="#" class="nav-item active" data-section="dashboard">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <rect x="3" y="3" width="7" height="7" rx="1"/>
+                        <rect x="14" y="3" width="7" height="7" rx="1"/>
+                        <rect x="3" y="14" width="7" height="7" rx="1"/>
+                        <rect x="14" y="14" width="7" height="7" rx="1"/>
+                    </svg>
+                    <span>仪表盘</span>
+                </a>
+                <a href="#" class="nav-item" data-section="videos">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="23 7 16 12 23 17 23 7"/>
+                        <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                    </svg>
+                    <span>视频管理</span>
+                </a>
+                <a href="#" class="nav-item" data-section="schedule">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="10"/>
+                        <polyline points="12 6 12 12 16 14"/>
+                    </svg>
+                    <span>定时任务</span>
+                </a>
+                <a href="#" class="nav-item" data-section="settings">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <circle cx="12" cy="12" r="3"/>
+                        <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+                    </svg>
+                    <span>系统设置</span>
+                </a>
+                <a href="#" class="nav-item" data-section="logs">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+                        <polyline points="14 2 14 8 20 8"/>
+                        <line x1="16" y1="13" x2="8" y2="13"/>
+                        <line x1="16" y1="17" x2="8" y2="17"/>
+                        <polyline points="10 9 9 9 8 9"/>
+                    </svg>
+                    <span>日志管理</span>
+                </a>
+            </nav>
+
+            <div class="sidebar-footer">
+                <div class="status-indicator">
+                    <span class="status-dot"></span>
+                    <span class="status-text">运行中</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- 主内容区 -->
+        <main class="main-content">
+            <!-- 顶部栏 -->
+            <header class="topbar">
+                <div class="topbar-left">
+                    <button class="menu-toggle" id="menuToggle">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="3" y1="12" x2="21" y2="12"/>
+                            <line x1="3" y1="6" x2="21" y2="6"/>
+                            <line x1="3" y1="18" x2="21" y2="18"/>
+                        </svg>
+                    </button>
+                    <h2 class="page-title" id="pageTitle">仪表盘</h2>
+                </div>
+                <div class="topbar-right">
+                    <div class="douyin-status" id="douyinStatus">
+                        <span class="status-badge unauthorized">未授权</span>
+                    </div>
+                    <button class="btn btn-primary" id="publishBtn">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="12" y1="19" x2="12" y2="5"/>
+                            <polyline points="5 12 12 5 19 12"/>
+                        </svg>
+                        立即发布
+                    </button>
+                </div>
+            </header>
+
+            <!-- 内容区域 -->
+            <div class="content-area">
+                <!-- 仪表盘 -->
+                <section class="section active" id="dashboard">
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <polygon points="23 7 16 12 23 17 23 7"/>
+                                    <rect x="1" y="5" width="15" height="14" rx="2" ry="2"/>
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="videoCount">0</span>
+                                <span class="stat-label">视频总数</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <circle cx="12" cy="12" r="10"/>
+                                    <polyline points="12 6 12 12 16 14"/>
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="nextPublish">--:--</span>
+                                <span class="stat-label">下次发布</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                    <polyline points="22 4 12 14.01 9 11.01"/>
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="schedulerStatus">停止</span>
+                                <span class="stat-label">调度状态</span>
+                            </div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="stat-icon">
+                                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                    <circle cx="12" cy="7" r="4"/>
+                                </svg>
+                            </div>
+                            <div class="stat-info">
+                                <span class="stat-value" id="authStatus">未连接</span>
+                                <span class="stat-label">抖音账号</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="dashboard-grid">
+                        <div class="card recent-videos">
+                            <div class="card-header">
+                                <h3>最近视频</h3>
+                                <a href="#" class="card-link" data-section="videos">查看全部</a>
+                            </div>
+                            <div class="video-list" id="recentVideos">
+                                <!-- 动态填充 -->
+                            </div>
+                        </div>
+                        <div class="card quick-actions">
+                            <div class="card-header">
+                                <h3>快速操作</h3>
+                            </div>
+                            <div class="action-buttons">
+                                <button class="action-btn" id="refreshVideos">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polyline points="23 4 23 10 17 10"/>
+                                        <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                    </svg>
+                                    刷新视频
+                                </button>
+                                <button class="action-btn" id="openFolder">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"/>
+                                    </svg>
+                                    打开目录
+                                </button>
+                                <button class="action-btn" id="startScheduler">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <polygon points="5 3 19 12 5 21 5 3"/>
+                                    </svg>
+                                    启动调度
+                                </button>
+                                <button class="action-btn" id="stopScheduler">
+                                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                        <rect x="6" y="4" width="4" height="16"/>
+                                        <rect x="14" y="4" width="4" height="16"/>
+                                    </svg>
+                                    停止调度
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 视频管理 -->
+                <section class="section" id="videos">
+                    <div class="section-header">
+                        <div class="search-box">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <circle cx="11" cy="11" r="8"/>
+                                <line x1="21" y1="21" x2="16.65" y2="16.65"/>
+                            </svg>
+                            <input type="text" placeholder="搜索视频..." id="videoSearch">
+                        </div>
+                        <button class="btn btn-secondary" id="scanVideos">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <polyline points="23 4 23 10 17 10"/>
+                                <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                            </svg>
+                            扫描目录
+                        </button>
+                    </div>
+                    <div class="video-grid" id="videoGrid">
+                        <!-- 动态填充 -->
+                    </div>
+                </section>
+
+                <!-- 定时任务 -->
+                <section class="section" id="schedule">
+                    <div class="schedule-container">
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>定时发布配置</h3>
+                            </div>
+                            <form id="scheduleForm" class="schedule-form">
+                                <div class="form-group">
+                                    <label class="form-label">启用定时发布</label>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="scheduleEnabled" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">发布日期</label>
+                                    <div class="day-selector">
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="monday">
+                                            <span>周一</span>
+                                        </label>
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="tuesday" checked>
+                                            <span>周二</span>
+                                        </label>
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="wednesday">
+                                            <span>周三</span>
+                                        </label>
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="thursday" checked>
+                                            <span>周四</span>
+                                        </label>
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="friday">
+                                            <span>周五</span>
+                                        </label>
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="saturday">
+                                            <span>周六</span>
+                                        </label>
+                                        <label class="day-chip">
+                                            <input type="checkbox" name="days" value="sunday">
+                                            <span>周日</span>
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group">
+                                    <label class="form-label">发布时间</label>
+                                    <input type="time" id="scheduleTime" value="17:00" class="form-input">
+                                </div>
+
+                                <button type="submit" class="btn btn-primary btn-block">
+                                    保存配置
+                                </button>
+                            </form>
+                        </div>
+
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>调度状态</h3>
+                            </div>
+                            <div class="scheduler-info">
+                                <div class="info-item">
+                                    <span class="info-label">状态</span>
+                                    <span class="info-value" id="schedulerState">未运行</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">任务数量</span>
+                                    <span class="info-value" id="jobCount">0</span>
+                                </div>
+                                <div class="info-item">
+                                    <span class="info-label">下次执行</span>
+                                    <span class="info-value" id="nextRun">--</span>
+                                </div>
+                            </div>
+                            <div class="scheduler-actions">
+                                <button class="btn btn-success" id="startSchedulerBtn">启动调度</button>
+                                <button class="btn btn-danger" id="stopSchedulerBtn">停止调度</button>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 系统设置 -->
+                <section class="section" id="settings">
+                    <div class="settings-container">
+                        <!-- 视频目录配置 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>视频目录</h3>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">视频文件存放目录</label>
+                                <p class="form-hint">程序会自动扫描此目录下的所有视频文件（支持mp4、avi、mov、mkv等格式）</p>
+                                <div class="directory-input">
+                                    <input type="text" id="videoDir" placeholder="例如：D:\Videos\抖音视频" class="form-input">
+                                    <button class="btn btn-secondary" id="browseDir">浏览</button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 抖音账号配置 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>抖音账号配置</h3>
+                                <button class="btn btn-sm btn-secondary" id="toggleGuide">查看配置指南</button>
+                            </div>
+
+                            <!-- 配置指南 -->
+                            <div class="guide-section" id="douyinGuide" style="display: none;">
+                                <div class="guide-content">
+                                    <h4>如何获取 Client Key 和 Client Secret</h4>
+
+                                    <div class="guide-warning" style="margin-bottom: 24px;">
+                                        <strong>前置条件：</strong>抖音开放平台要求完成<strong>企业开发者认证</strong>后才能创建网站应用获取凭证。个人开发者无法直接创建网站应用，需要先注册个体工商户或企业资质。
+                                    </div>
+
+                                    <div class="guide-steps">
+                                        <div class="guide-step">
+                                            <div class="step-number">1</div>
+                                            <div class="step-content">
+                                                <h5>注册并登录抖音开放平台</h5>
+                                                <p>访问 <a href="https://open.douyin.com" target="_blank" style="color: var(--secondary);">https://open.douyin.com</a>，使用抖音APP扫码登录或手机号注册。</p>
+                                                <p>首次登录需要完成<strong>开发者资质认证</strong>（个人/企业），建议使用企业资质。</p>
+                                                <div class="guide-screenshot">
+                                                    <img src="{{ url_for('static', filename='images/guide/step1-login.svg') }}" alt="抖音开放平台登录页面" loading="lazy">
+                                                    <span class="screenshot-caption">抖音开放平台登录页面</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="guide-step">
+                                            <div class="step-number">2</div>
+                                            <div class="step-content">
+                                                <h5>创建网站应用</h5>
+                                                <p>登录后，进入左侧「管理中心」→「我的应用」，点击右上角「创建应用」按钮。</p>
+                                                <ul>
+                                                    <li>应用类型：选择<strong>「网站应用」</strong></li>
+                                                    <li>应用名称：自定义，如"视频发布助手"</li>
+                                                    <li>应用描述：说明应用用途，如"用于定时自动发布视频到抖音"</li>
+                                                </ul>
+                                                <div class="guide-tip">
+                                                    <strong>提示：</strong>如果看不到「创建应用」按钮，请确认已完成企业开发者认证。个人开发者需要先注册个体工商户。
+                                                </div>
+                                                <div class="guide-screenshot">
+                                                    <img src="{{ url_for('static', filename='images/guide/step2-create-app.svg') }}" alt="管理中心创建应用" loading="lazy">
+                                                    <span class="screenshot-caption">管理中心 - 点击「创建应用」</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="guide-step">
+                                            <div class="step-number">3</div>
+                                            <div class="step-content">
+                                                <h5>填写应用信息</h5>
+                                                <p>在创建应用页面，填写以下信息：</p>
+                                                <ul>
+                                                    <li>应用类型：选择「网站应用」</li>
+                                                    <li>应用名称：自定义名称</li>
+                                                    <li>应用描述：说明用途</li>
+                                                    <li><strong>回调地址</strong>：填写 <code>http://localhost:8080/callback</code></li>
+                                                </ul>
+                                                <div class="guide-warning">
+                                                    <strong>重要：</strong>回调地址必须填写 <code>http://localhost:8080/callback</code>，否则授权流程无法完成。
+                                                </div>
+                                                <div class="guide-screenshot">
+                                                    <img src="{{ url_for('static', filename='images/guide/step3-fill-info.svg') }}" alt="填写应用信息" loading="lazy">
+                                                    <span class="screenshot-caption">填写应用信息，回调地址填写 http://localhost:8080/callback</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="guide-step">
+                                            <div class="step-number">4</div>
+                                            <div class="step-content">
+                                                <h5>获取凭证（Client Key 和 Client Secret）</h5>
+                                                <p>应用创建成功后，进入应用详情页，点击「凭证信息」标签页，可以看到：</p>
+                                                <ul>
+                                                    <li><strong>Client Key</strong>：应用的唯一标识（以 <code>aw</code> 开头）</li>
+                                                    <li><strong>Client Secret</strong>：应用密钥（点击"查看"按钮显示）</li>
+                                                </ul>
+                                                <p>点击右侧「复制」按钮分别复制 Client Key 和 Client Secret。</p>
+                                                <div class="guide-warning">
+                                                    <strong>安全提示：</strong>Client Secret 是敏感信息，请勿分享给他人或上传到公开仓库。本工具使用 AES-256 加密存储。
+                                                </div>
+                                                <div class="guide-screenshot">
+                                                    <img src="{{ url_for('static', filename='images/guide/step4-get-credentials.svg') }}" alt="获取凭证" loading="lazy">
+                                                    <span class="screenshot-caption">在「凭证信息」页面复制 Client Key 和 Client Secret</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="guide-step">
+                                            <div class="step-number">5</div>
+                                            <div class="step-content">
+                                                <h5>申请视频发布权限</h5>
+                                                <p>在应用详情页，点击「权限管理」标签页，申请以下权限：</p>
+                                                <ul>
+                                                    <li><code>video.create</code> - 创建视频（<strong>必选</strong>，发布视频必需）</li>
+                                                    <li><code>video.data</code> - 视频数据（必选，读取视频信息）</li>
+                                                    <li><code>user.info</code> - 用户信息（可选）</li>
+                                                </ul>
+                                                <div class="guide-tip">
+                                                    <strong>注意：</strong><code>video.create</code> 权限可能需要提交使用场景说明，审核周期约 1-3 个工作日。
+                                                </div>
+                                                <div class="guide-screenshot">
+                                                    <img src="{{ url_for('static', filename='images/guide/step5-permissions.svg') }}" alt="申请权限" loading="lazy">
+                                                    <span class="screenshot-caption">在「权限管理」页面申请 video.create 等必要权限</span>
+                                                </div>
+                                            </div>
+                                        </div>
+
+                                        <div class="guide-step">
+                                            <div class="step-number">6</div>
+                                            <div class="step-content">
+                                                <h5>在本工具中完成配置</h5>
+                                                <p>将复制的 Client Key 和 Client Secret 粘贴到下方表单，然后：</p>
+                                                <ol>
+                                                    <li>点击「保存凭证」保存配置</li>
+                                                    <li>点击「授权登录」打开抖音授权页面</li>
+                                                    <li>使用抖音扫码完成授权</li>
+                                                    <li>将授权码粘贴到弹出的对话框中</li>
+                                                </ol>
+                                                <div class="guide-screenshot">
+                                                    <img src="{{ url_for('static', filename='images/guide/step6-config.svg') }}" alt="完成配置" loading="lazy">
+                                                    <span class="screenshot-caption">将凭证粘贴到本工具，点击「授权登录」完成配置</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="guide-tip" style="margin-top: 24px;">
+                                        <strong>常见问题：</strong>
+                                        <ul style="margin-top: 8px; margin-left: 16px;">
+                                            <li><strong>Q: 个人开发者能否创建应用？</strong><br>A: 抖音开放平台要求企业资质。个人可注册个体工商户（免费），再用企业资质认证。</li>
+                                            <li><strong>Q: 回调地址填错了怎么办？</strong><br>A: 在应用详情页 → 安全设置中修改回调地址。</li>
+                                            <li><strong>Q: Client Secret 忘记了怎么办？</strong><br>A: 在凭证信息页面可以重新查看或重置 Client Secret。</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="douyin-config">
+                                <div class="form-group">
+                                    <label class="form-label">Client Key <span class="required">*</span></label>
+                                    <p class="form-hint">在抖音开放平台应用的「凭证与基础信息」页面获取</p>
+                                    <input type="text" id="clientKey" placeholder="输入 Client Key" class="form-input">
+                                </div>
+                                <div class="form-group">
+                                    <label class="form-label">Client Secret <span class="required">*</span></label>
+                                    <p class="form-hint">在抖音开放平台应用的「凭证与基础信息」页面获取</p>
+                                    <input type="password" id="clientSecret" placeholder="输入 Client Secret" class="form-input" data-has-value="false">
+                                    <div class="security-badge">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" width="14" height="14">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                        <span>密文存储：Client Secret 将使用 AES-256 加密保存到本地</span>
+                                    </div>
+                                </div>
+
+                                <div class="auth-status-info" id="authStatusInfo">
+                                    <div class="status-icon">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <circle cx="12" cy="12" r="10"/>
+                                            <line x1="12" y1="8" x2="12" y2="12"/>
+                                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                        </svg>
+                                    </div>
+                                    <div class="status-text">
+                                        <strong>授权状态：</strong>未授权
+                                        <p>请先填写 Client Key 和 Client Secret，然后点击「授权登录」</p>
+                                    </div>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button class="btn btn-secondary" id="saveCredentials">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                                            <polyline points="17 21 17 13 7 13 7 21"/>
+                                            <polyline points="7 3 7 8 15 8"/>
+                                        </svg>
+                                        保存凭证
+                                    </button>
+                                    <button class="btn btn-primary" id="authorizeBtn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                                            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                                        </svg>
+                                        授权登录
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 系统选项 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>系统选项</h3>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-row">
+                                    <div>
+                                        <label class="form-label">开机自启动</label>
+                                        <p class="form-hint">Windows启动时自动运行本程序</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="autoStart" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                            <div class="form-group">
+                                <div class="form-row">
+                                    <div>
+                                        <label class="form-label">最小化到托盘</label>
+                                        <p class="form-hint">关闭窗口时最小化到系统托盘继续运行</p>
+                                    </div>
+                                    <label class="toggle-switch">
+                                        <input type="checkbox" id="minimizeToTray" checked>
+                                        <span class="toggle-slider"></span>
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 配置保存状态 -->
+                        <div class="save-status" id="saveStatus">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/>
+                                <polyline points="22 4 12 14.01 9 11.01"/>
+                            </svg>
+                            <span>所有配置已自动保存</span>
+                        </div>
+                    </div>
+                </section>
+
+                <!-- 日志管理 -->
+                <section class="section" id="logs">
+                    <div class="logs-container">
+                        <!-- 日志统计 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <h3>日志统计</h3>
+                                <button class="btn btn-sm btn-danger" id="clearAllLogs">清除所有日志</button>
+                            </div>
+                            <div class="log-stats-grid">
+                                <div class="log-stat-item">
+                                    <span class="log-stat-value" id="runtimeLogCount">0</span>
+                                    <span class="log-stat-label">运行日志</span>
+                                </div>
+                                <div class="log-stat-item">
+                                    <span class="log-stat-value" id="operationLogCount">0</span>
+                                    <span class="log-stat-label">操作记录</span>
+                                </div>
+                                <div class="log-stat-item">
+                                    <span class="log-stat-value" id="errorLogCount">0</span>
+                                    <span class="log-stat-label">错误日志</span>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- 日志标签页 -->
+                        <div class="card">
+                            <div class="card-header">
+                                <div class="log-tabs">
+                                    <button class="log-tab active" data-tab="runtime">运行日志</button>
+                                    <button class="log-tab" data-tab="operations">操作记录</button>
+                                    <button class="log-tab" data-tab="errors">错误日志</button>
+                                </div>
+                                <div class="log-actions">
+                                    <select id="logLevelFilter" class="form-select">
+                                        <option value="">所有级别</option>
+                                        <option value="INFO">INFO</option>
+                                        <option value="WARNING">WARNING</option>
+                                        <option value="ERROR">ERROR</option>
+                                    </select>
+                                    <button class="btn btn-sm btn-secondary" id="refreshLogs">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <polyline points="23 4 23 10 17 10"/>
+                                            <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/>
+                                        </svg>
+                                        刷新
+                                    </button>
+                                    <button class="btn btn-sm btn-secondary" id="exportLogs">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                                            <polyline points="7 10 12 15 17 10"/>
+                                            <line x1="12" y1="15" x2="12" y2="3"/>
+                                        </svg>
+                                        导出
+                                    </button>
+                                </div>
+                            </div>
+
+                            <!-- 运行日志 -->
+                            <div class="log-content active" id="runtimeLogs">
+                                <div class="log-list" id="runtimeLogList">
+                                    <div class="log-empty">暂无运行日志</div>
+                                </div>
+                            </div>
+
+                            <!-- 操作记录 -->
+                            <div class="log-content" id="operationLogs">
+                                <div class="log-list" id="operationLogList">
+                                    <div class="log-empty">暂无操作记录</div>
+                                </div>
+                            </div>
+
+                            <!-- 错误日志 -->
+                            <div class="log-content" id="errorLogs">
+                                <div class="log-list" id="errorLogList">
+                                    <div class="log-empty">暂无错误日志</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </section>
+            </div>
+        </main>
+    </div>
+
+    <!-- 发布对话框 -->
+    <div class="modal" id="publishModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>发布视频</h3>
+                <button class="modal-close" id="closePublishModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label class="form-label">视频标题</label>
+                    <input type="text" id="publishTitle" placeholder="输入视频标题" class="form-input">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">视频描述</label>
+                    <textarea id="publishDesc" placeholder="输入视频描述（可选）" class="form-input" rows="3"></textarea>
+                </div>
+                <input type="hidden" id="publishVideoPath">
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelPublish">取消</button>
+                <button class="btn btn-primary" id="confirmPublish">确认发布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 授权对话框 -->
+    <div class="modal" id="authModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>抖音授权</h3>
+                <button class="modal-close" id="closeAuthModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="auth-steps">
+                    <p><strong>授权步骤：</strong></p>
+                    <ol>
+                        <li>点击下方按钮打开抖音授权页面</li>
+                        <li>使用抖音扫码或登录</li>
+                        <li>同意授权后，复制页面显示的授权码</li>
+                        <li>将授权码粘贴到下方输入框</li>
+                    </ol>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">授权码</label>
+                    <input type="text" id="authCode" placeholder="输入授权码" class="form-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="cancelAuth">取消</button>
+                <button class="btn btn-primary" id="confirmAuth">确认授权</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 提示消息 -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

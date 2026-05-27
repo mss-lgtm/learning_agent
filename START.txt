@@ -1,0 +1,42 @@
+========================================
+  TikTok Publisher - Quick Start
+========================================
+
+STEP 1: Run the program
+----------------------------------------
+Double-click: dist\TikTokPublisherWeb.exe
+
+Browser will open automatically at:
+http://127.0.0.1:5000
+
+
+STEP 2: Install (Optional)
+----------------------------------------
+To install with auto-start and shortcuts:
+
+1. Right-click: installer\install_simple.bat
+2. Select "Run as administrator"
+3. Follow the prompts
+
+
+TROUBLESHOOTING
+----------------------------------------
+
+Problem: Program won't start
+Solution: Make sure port 5000 is not in use
+
+Problem: Need to rebuild
+Solution: Run: python build.py
+
+Problem: Install script fails
+Solution: Run as Administrator
+
+
+FILES
+----------------------------------------
+dist\TikTokPublisherWeb.exe  - Main program
+installer\install_simple.bat - Installer
+build.py                     - Build script
+open_help.bat                - Open help
+
+========================================
