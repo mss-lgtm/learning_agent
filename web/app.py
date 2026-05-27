@@ -2,12 +2,13 @@ from flask import Flask, render_template, jsonify, request
 from flask_cors import CORS
 import sys
 import os
+import threading
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from core.config import ConfigManager
 from core.video_scanner import VideoScanner
-from core.douyin_api import DouyinAPI
+from core.browser_publisher import BrowserPublisher
 from core.scheduler import TaskScheduler
 from core.logger import logger
 
@@ -16,18 +17,14 @@ CORS(app)
 
 config_manager = ConfigManager()
 scheduler = TaskScheduler()
+browser_publisher = BrowserPublisher(cookie_dir=config_manager.config.douyin.cookie_dir)
+
+# 登录状态跟踪
+_login_in_progress = False
+_login_result = None
 
 # 记录应用启动
 logger.log_runtime("应用启动", "info")
-
-
-def mask_secret(value: str) -> str:
-    """对敏感信息进行脱敏"""
-    if not value:
-        return ""
-    if len(value) <= 8:
-        return "*" * len(value)
-    return value[:4] + "*" * (len(value) - 8) + value[-4:]
 
 
 @app.route("/")
@@ -51,13 +48,11 @@ def get_config():
 
 @app.route("/api/douyin/config", methods=["GET"])
 def get_douyin_config():
-    """获取抖音配置（脱敏）"""
-    douyin = config_manager.config.douyin
+    """获取抖音配置"""
+    cookie_file = browser_publisher.cookie_dir / BrowserPublisher.COOKIE_FILE_NAME
     return jsonify({
-        "client_key": douyin.client_key,
-        "client_secret": mask_secret(douyin.client_secret),
-        "has_client_secret": bool(douyin.client_secret),
-        "is_authenticated": bool(douyin.access_token and douyin.open_id),
+        "has_cookies": cookie_file.exists(),
+        "cookie_dir": str(browser_publisher.cookie_dir),
     })
 
 
@@ -111,62 +106,48 @@ def get_videos():
 
 @app.route("/api/douyin/status", methods=["GET"])
 def douyin_status():
-    douyin = DouyinAPI(config_manager.config.douyin)
     return jsonify({
-        "authenticated": douyin.is_authenticated(),
-        "has_credentials": bool(config_manager.config.douyin.client_key),
+        "authenticated": browser_publisher.is_authenticated(),
+        "login_in_progress": _login_in_progress,
     })
 
 
-@app.route("/api/douyin/credentials", methods=["POST"])
-def set_credentials():
-    data = request.json
+@app.route("/api/douyin/login", methods=["POST"])
+def douyin_login():
+    global _login_in_progress, _login_result
+    if _login_in_progress:
+        return jsonify({"error": "登录正在进行中"}), 400
 
-    # 准备更新的数据
-    update_data = {
-        "client_key": data.get("client_key", ""),
-    }
+    _login_in_progress = True
+    _login_result = None
 
-    # 只有当 client_secret 不为 None 时才更新（None 表示不修改）
-    client_secret = data.get("client_secret")
-    if client_secret is not None:
-        update_data["client_secret"] = client_secret
+    def do_login():
+        global _login_in_progress, _login_result
+        try:
+            _login_result = browser_publisher.start_login()
+            if _login_result:
+                logger.log_auth("扫码登录", "成功")
+            else:
+                logger.log_auth("扫码登录", "失败", "超时或用户取消")
+        except Exception as e:
+            _login_result = False
+            logger.log_auth("扫码登录", "失败", str(e))
+        finally:
+            _login_in_progress = False
 
-    config_manager.update_douyin_config(**update_data)
-    logger.log_operation("保存凭证", "抖音凭证已更新（密文存储）")
-    return jsonify({"success": True})
+    thread = threading.Thread(target=do_login, daemon=True)
+    thread.start()
+
+    logger.log_auth("扫码登录", "启动")
+    return jsonify({"success": True, "message": "浏览器已打开，请扫码登录"})
 
 
-@app.route("/api/douyin/auth-url", methods=["GET"])
-def get_auth_url():
-    douyin = DouyinAPI(config_manager.config.douyin)
-    redirect_uri = request.args.get("redirect_uri", "http://localhost:8080/callback")
-    url = douyin.get_auth_url(redirect_uri)
-    return jsonify({"url": url})
-
-
-@app.route("/api/douyin/callback", methods=["POST"])
-def douyin_callback():
-    data = request.json
-    code = data.get("code")
-    if not code:
-        return jsonify({"error": "缺少授权码"}), 400
-
-    douyin = DouyinAPI(config_manager.config.douyin)
-    result = douyin.get_access_token(code)
-
-    if "error" in result:
-        logger.log_auth("授权", "失败", result["error"])
-        return jsonify({"error": result["error"]}), 400
-
-    config_manager.update_douyin_config(
-        access_token=douyin.config.access_token,
-        refresh_token=douyin.config.refresh_token,
-        open_id=douyin.config.open_id,
-    )
-
-    logger.log_auth("授权", "成功")
-    return jsonify({"success": True})
+@app.route("/api/douyin/login/status", methods=["GET"])
+def douyin_login_status():
+    return jsonify({
+        "in_progress": _login_in_progress,
+        "result": _login_result,
+    })
 
 
 @app.route("/api/publish", methods=["POST"])
@@ -179,15 +160,14 @@ def publish_video():
     if not video_path:
         return jsonify({"error": "未指定视频路径"}), 400
 
-    douyin = DouyinAPI(config_manager.config.douyin)
-    if not douyin.is_authenticated():
+    if not browser_publisher.is_authenticated():
         logger.log_publish(title, "失败", "未授权")
-        return jsonify({"error": "未授权，请先登录抖音"}), 400
+        return jsonify({"error": "未授权，请先扫码登录抖音"}), 400
 
     from pathlib import Path
     video_name = Path(video_path).name
 
-    result = douyin.upload_video(video_path, title, description)
+    result = browser_publisher.upload_video(video_path, title, description)
 
     if "error" in result:
         logger.log_publish(video_name, "失败", result["error"])
@@ -214,10 +194,9 @@ def start_scheduler():
         scanner = VideoScanner(directory)
         video = scanner.get_latest_video()
         if video:
-            douyin = DouyinAPI(config_manager.config.douyin)
-            if douyin.is_authenticated():
+            if browser_publisher.is_authenticated():
                 logger.log_scheduler("执行", f"发布视频: {video.filename}")
-                result = douyin.upload_video(video.path, video.filename, "")
+                result = browser_publisher.upload_video(video.path, video.filename, "")
                 if "error" in result:
                     logger.log_publish(video.filename, "失败", result["error"])
                 else:

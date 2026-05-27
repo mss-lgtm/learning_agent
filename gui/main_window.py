@@ -2,10 +2,11 @@ import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, simpledialog
 from typing import Optional
 from datetime import datetime
+import threading
 
 from core.config import ConfigManager
 from core.video_scanner import VideoScanner, VideoFile
-from core.douyin_api import DouyinAPI
+from core.browser_publisher import BrowserPublisher
 from core.scheduler import TaskScheduler
 
 
@@ -14,7 +15,7 @@ class MainWindow:
         self.root = root
         self.config = config_manager
         self.scanner: Optional[VideoScanner] = None
-        self.douyin = DouyinAPI(self.config.config.douyin)
+        self.publisher = BrowserPublisher(cookie_dir=self.config.config.douyin.cookie_dir)
         self.scheduler = TaskScheduler()
 
         self._setup_window()
@@ -92,8 +93,7 @@ class MainWindow:
         self.auth_status_var = tk.StringVar(value="未授权")
         ttk.Label(douyin_frame, textvariable=self.auth_status_var).pack(side=tk.LEFT, padx=5)
 
-        ttk.Button(douyin_frame, text="授权登录", command=self._authorize_douyin).pack(side=tk.LEFT, padx=5)
-        ttk.Button(douyin_frame, text="设置凭证", command=self._set_credentials).pack(side=tk.LEFT, padx=5)
+        ttk.Button(douyin_frame, text="扫码登录", command=self._authorize_douyin).pack(side=tk.LEFT, padx=5)
 
         # 保存按钮
         btn_frame = ttk.Frame(config_frame)
@@ -155,10 +155,10 @@ class MainWindow:
         if self.config.config.video_directory:
             self._refresh_videos()
 
-        if self.douyin.is_authenticated():
-            self.auth_status_var.set("已授权")
+        if self.publisher.is_authenticated():
+            self.auth_status_var.set("已登录")
         else:
-            self.auth_status_var.set("未授权")
+            self.auth_status_var.set("未登录")
 
     def _browse_directory(self):
         directory = filedialog.askdirectory(title="选择视频目录")
@@ -205,56 +205,23 @@ class MainWindow:
             messagebox.showinfo("视频信息", f"文件: {filename}")
 
     def _authorize_douyin(self):
-        if not self.config.config.douyin.client_key:
-            messagebox.showwarning("警告", "请先设置抖音应用凭证")
-            return
+        self.auth_status_var.set("正在打开浏览器，请扫码登录...")
+        self.root.update()
 
-        auth_url = self.douyin.get_auth_url("http://localhost:8080/callback")
-        import webbrowser
-        webbrowser.open(auth_url)
-        messagebox.showinfo("授权", "请在浏览器中完成授权，然后输入授权码")
+        def do_login():
+            success = self.publisher.start_login()
+            self.root.after(0, lambda: self._on_login_result(success))
 
-        # 创建授权码输入对话框
-        code = simpledialog.askstring("输入授权码", "请输入浏览器中显示的授权码:")
-        if code:
-            result = self.douyin.get_access_token(code)
-            if "error" in result:
-                messagebox.showerror("错误", f"授权失败: {result['error']}")
-            else:
-                self.auth_status_var.set("已授权")
-                self.config.update_douyin_config(
-                    access_token=self.douyin.config.access_token,
-                    refresh_token=self.douyin.config.refresh_token,
-                    open_id=self.douyin.config.open_id,
-                )
-                messagebox.showinfo("成功", "授权成功!")
+        threading.Thread(target=do_login, daemon=True).start()
 
-    def _set_credentials(self):
-        # 创建凭证设置对话框
-        dialog = tk.Toplevel(self.root)
-        dialog.title("设置抖音凭证")
-        dialog.geometry("400x200")
-        dialog.transient(self.root)
-        dialog.grab_set()
-
-        ttk.Label(dialog, text="Client Key:").pack(pady=5)
-        key_var = tk.StringVar(value=self.config.config.douyin.client_key)
-        ttk.Entry(dialog, textvariable=key_var, width=40).pack()
-
-        ttk.Label(dialog, text="Client Secret:").pack(pady=5)
-        secret_var = tk.StringVar(value=self.config.config.douyin.client_secret)
-        ttk.Entry(dialog, textvariable=secret_var, width=40, show="*").pack()
-
-        def save():
-            self.config.update_douyin_config(
-                client_key=key_var.get(),
-                client_secret=secret_var.get(),
-            )
-            self.douyin = DouyinAPI(self.config.config.douyin)
-            dialog.destroy()
-            messagebox.showinfo("成功", "凭证已保存")
-
-        ttk.Button(dialog, text="保存", command=save).pack(pady=20)
+    def _on_login_result(self, success):
+        if success:
+            self.auth_status_var.set("已登录")
+            messagebox.showinfo("成功", "登录成功！")
+        else:
+            self.auth_status_var.set("登录失败")
+            messagebox.showerror("失败", "登录失败或超时，请重试")
+        self.status_var.set("就绪")
 
     def _convert_days(self, days_str: str) -> list:
         """将中文天数转换为英文"""
@@ -329,8 +296,8 @@ class MainWindow:
 
     def _publish_video(self, video: VideoFile):
         """发布单个视频"""
-        if not self.douyin.is_authenticated():
-            messagebox.showwarning("警告", "请先完成抖音授权")
+        if not self.publisher.is_authenticated():
+            messagebox.showwarning("警告", "请先扫码登录抖音")
             return
 
         self.status_var.set(f"正在发布: {video.filename}")
@@ -340,7 +307,7 @@ class MainWindow:
         if not title:
             return
 
-        result = self.douyin.upload_video(
+        result = self.publisher.upload_video(
             video_path=video.path,
             title=title,
             description="",

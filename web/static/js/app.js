@@ -98,16 +98,10 @@ class App {
 
         // Settings
         document.getElementById('browseDir').addEventListener('click', () => this.browseDirectory());
-        document.getElementById('saveCredentials').addEventListener('click', () => this.saveCredentials());
-        document.getElementById('authorizeBtn').addEventListener('click', () => this.authorize());
 
-        // Guide toggle
-        document.getElementById('toggleGuide').addEventListener('click', () => this.toggleGuide());
-
-        // Auth modal
-        document.getElementById('closeAuthModal').addEventListener('click', () => this.closeAuthModal());
-        document.getElementById('cancelAuth').addEventListener('click', () => this.closeAuthModal());
-        document.getElementById('confirmAuth').addEventListener('click', () => this.confirmAuth());
+        // Scan login
+        document.getElementById('scanLoginBtn').addEventListener('click', () => this.startScanLogin());
+        document.getElementById('checkLoginStatus').addEventListener('click', () => this.updateDouyinStatus());
 
         // Video search
         document.getElementById('videoSearch').addEventListener('input', (e) => this.searchVideos(e.target.value));
@@ -221,22 +215,7 @@ class App {
 
     async loadDouyinConfig() {
         try {
-            const config = await API.get('/api/douyin/config');
-
-            // 显示脱敏的 Client Key
-            document.getElementById('clientKey').value = config.client_key || '';
-
-            // 显示脱敏的 Client Secret
-            const secretInput = document.getElementById('clientSecret');
-            if (config.has_client_secret) {
-                secretInput.value = config.client_secret;
-                secretInput.dataset.hasValue = 'true';
-                secretInput.placeholder = '已配置（输入新值可更新）';
-            } else {
-                secretInput.value = '';
-                secretInput.dataset.hasValue = 'false';
-                secretInput.placeholder = '输入 Client Secret';
-            }
+            await API.get('/api/douyin/config');
         } catch (error) {
             console.error('加载抖音配置失败:', error);
         }
@@ -439,7 +418,7 @@ class App {
 
             if (status.authenticated) {
                 badge.className = 'status-badge authorized';
-                badge.textContent = '已授权';
+                badge.textContent = '已登录';
                 document.getElementById('authStatus').textContent = '已连接';
                 authInfo.className = 'auth-status-info authorized';
                 authInfo.innerHTML = `
@@ -450,14 +429,14 @@ class App {
                         </svg>
                     </div>
                     <div class="status-text">
-                        <strong>授权状态：已授权</strong>
+                        <strong>登录状态：已登录</strong>
                         <p>抖音账号已连接，可以正常发布视频</p>
                     </div>
                 `;
-            } else if (status.has_credentials) {
-                badge.className = 'status-badge unauthorized';
-                badge.textContent = '待授权';
-                document.getElementById('authStatus').textContent = '待授权';
+            } else if (status.login_in_progress) {
+                badge.className = 'status-badge';
+                badge.textContent = '登录中';
+                document.getElementById('authStatus').textContent = '登录中';
                 authInfo.className = 'auth-status-info';
                 authInfo.innerHTML = `
                     <div class="status-icon">
@@ -468,13 +447,13 @@ class App {
                         </svg>
                     </div>
                     <div class="status-text">
-                        <strong>授权状态：待授权</strong>
-                        <p>凭证已保存，请点击「授权登录」完成授权</p>
+                        <strong>登录状态：等待扫码</strong>
+                        <p>浏览器已打开，请使用抖音 APP 扫描二维码</p>
                     </div>
                 `;
             } else {
                 badge.className = 'status-badge unauthorized';
-                badge.textContent = '未配置';
+                badge.textContent = '未登录';
                 document.getElementById('authStatus').textContent = '未连接';
                 authInfo.className = 'auth-status-info';
                 authInfo.innerHTML = `
@@ -486,24 +465,14 @@ class App {
                         </svg>
                     </div>
                     <div class="status-text">
-                        <strong>授权状态：未配置</strong>
-                        <p>请先填写 Client Key 和 Client Secret，然后点击「授权登录」</p>
+                        <strong>登录状态：未登录</strong>
+                        <p>请点击「扫码登录」按钮登录抖音账号</p>
                     </div>
                 `;
             }
         } catch (error) {
             console.error('获取抖音状态失败:', error);
         }
-    }
-
-    toggleGuide() {
-        const guide = document.getElementById('douyinGuide');
-        const btn = document.getElementById('toggleGuide');
-        const isVisible = guide.style.display !== 'none';
-
-        guide.style.display = isVisible ? 'none' : 'block';
-        btn.textContent = isVisible ? '查看配置指南' : '隐藏配置指南';
-        btn.classList.toggle('active', !isVisible);
     }
 
     async browseDirectory() {
@@ -529,88 +498,40 @@ class App {
         }
     }
 
-    async saveCredentials() {
-        const clientKey = document.getElementById('clientKey').value;
-        const clientSecret = document.getElementById('clientSecret').value;
-        const secretInput = document.getElementById('clientSecret');
-        const hasExistingSecret = secretInput.dataset.hasValue === 'true';
-
-        // 验证输入
-        if (!clientKey) {
-            this.toast.show('请输入 Client Key', 'error');
-            return;
-        }
-
-        // 如果没有已保存的密钥，且用户没有输入新密钥
-        if (!hasExistingSecret && !clientSecret) {
-            this.toast.show('请输入 Client Secret', 'error');
-            return;
-        }
-
+    async startScanLogin() {
         try {
-            // 如果用户没有输入新的密钥，发送空字符串表示不更新
-            const data = {
-                client_key: clientKey,
-                client_secret: hasExistingSecret && !clientSecret ? null : clientSecret
-            };
-
-            await API.post('/api/douyin/credentials', data);
-            this.toast.show('凭证已保存（密文存储）');
-
-            // 重新加载配置以显示脱敏后的密钥
-            await this.loadDouyinConfig();
-            await this.updateDouyinStatus();
-        } catch (error) {
-            this.toast.show('保存凭证失败', 'error');
-        }
-    }
-
-    async authorize() {
-        const clientKey = document.getElementById('clientKey').value;
-        const clientSecret = document.getElementById('clientSecret').value;
-
-        if (!clientKey || !clientSecret) {
-            this.toast.show('请先填写并保存 Client Key 和 Client Secret', 'error');
-            return;
-        }
-
-        try {
-            const data = await API.get('/api/douyin/auth-url?redirect_uri=http://localhost:8080/callback');
-
-            if (data.url) {
-                window.open(data.url, '_blank');
-                document.getElementById('authModal').classList.add('active');
-            }
-        } catch (error) {
-            this.toast.show('获取授权链接失败', 'error');
-        }
-    }
-
-    closeAuthModal() {
-        document.getElementById('authModal').classList.remove('active');
-    }
-
-    async confirmAuth() {
-        const code = document.getElementById('authCode').value;
-
-        if (!code) {
-            this.toast.show('请输入授权码', 'error');
-            return;
-        }
-
-        try {
-            const result = await API.post('/api/douyin/callback', { code });
-
+            const result = await API.post('/api/douyin/login');
             if (result.error) {
                 this.toast.show(result.error, 'error');
-            } else {
-                this.toast.show('授权成功！');
-                this.closeAuthModal();
-                await this.updateDouyinStatus();
+                return;
             }
+            this.toast.show('浏览器已打开，请扫码登录');
+            this._startLoginPolling();
         } catch (error) {
-            this.toast.show('授权失败: ' + error.message, 'error');
+            this.toast.show('启动登录失败: ' + error.message, 'error');
         }
+    }
+
+    _startLoginPolling() {
+        const pollInterval = setInterval(async () => {
+            try {
+                const status = await API.get('/api/douyin/login/status');
+                if (status.result === true) {
+                    clearInterval(pollInterval);
+                    this.toast.show('登录成功！');
+                    await this.updateDouyinStatus();
+                } else if (status.result === false) {
+                    clearInterval(pollInterval);
+                    this.toast.show('登录失败或超时，请重试', 'error');
+                    await this.updateDouyinStatus();
+                }
+            } catch (error) {
+                clearInterval(pollInterval);
+                console.error('轮询登录状态失败:', error);
+            }
+        }, 3000);
+
+        setTimeout(() => clearInterval(pollInterval), 180000);
     }
 
     async updateSetting(key, value) {

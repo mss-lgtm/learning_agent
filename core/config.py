@@ -2,7 +2,7 @@ import json
 import os
 from pathlib import Path
 from typing import Optional
-from dataclasses import dataclass, asdict, field
+from dataclasses import dataclass, asdict, field, fields
 from datetime import time
 
 # 延迟导入避免循环引用
@@ -17,11 +17,7 @@ def get_crypto():
 
 @dataclass
 class DouyinConfig:
-    client_key: str = ""
-    client_secret: str = ""
-    access_token: str = ""
-    refresh_token: str = ""
-    open_id: str = ""
+    cookie_dir: str = ""
 
 
 @dataclass
@@ -55,8 +51,8 @@ class AppConfig:
 
 
 class ConfigManager:
-    # 需要加密存储的字段
-    ENCRYPTED_FIELDS = {"client_secret", "access_token", "refresh_token"}
+    # 需要加密存储的字段（已移除，浏览器自动化不再需要 API 凭证）
+    ENCRYPTED_FIELDS = set()
 
     def __init__(self):
         self.config_dir = Path(os.environ.get("APPDATA", "")) / "TikTokPublisher"
@@ -74,17 +70,14 @@ class ConfigManager:
                 with open(self.config_file, "r", encoding="utf-8") as f:
                     data = json.load(f)
 
-                # 解密敏感字段
+                # 过滤出 DouyinConfig 支持的字段（向后兼容旧配置）
                 douyin_data = data.get("douyin", {})
-                crypto = get_crypto()
-
-                for field_name in self.ENCRYPTED_FIELDS:
-                    if field_name in douyin_data and douyin_data[field_name]:
-                        douyin_data[field_name] = crypto.decrypt(douyin_data[field_name])
+                valid_fields = {f.name for f in fields(DouyinConfig)}
+                filtered_douyin = {k: v for k, v in douyin_data.items() if k in valid_fields}
 
                 self.config = AppConfig(
                     video_directory=data.get("video_directory", ""),
-                    douyin=DouyinConfig(**douyin_data),
+                    douyin=DouyinConfig(**filtered_douyin),
                     schedule=ScheduleConfig(**data.get("schedule", {})),
                     auto_start=data.get("auto_start", True),
                     minimize_to_tray=data.get("minimize_to_tray", True),
@@ -94,20 +87,7 @@ class ConfigManager:
 
     def save(self):
         try:
-            crypto = get_crypto()
-
-            # 创建配置的副本用于保存
             config_dict = asdict(self.config)
-
-            # 加密敏感字段
-            douyin_dict = config_dict.get("douyin", {})
-            for field_name in self.ENCRYPTED_FIELDS:
-                if field_name in douyin_dict and douyin_dict[field_name]:
-                    # 如果已经是加密的，不重复加密
-                    if not crypto.is_encrypted(douyin_dict[field_name]):
-                        douyin_dict[field_name] = crypto.encrypt(douyin_dict[field_name])
-
-            config_dict["douyin"] = douyin_dict
 
             with open(self.config_file, "w", encoding="utf-8") as f:
                 json.dump(config_dict, f, ensure_ascii=False, indent=2)
