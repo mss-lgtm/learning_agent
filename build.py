@@ -86,6 +86,22 @@ def main():
         "--icon", "assets/icon.ico",
         "--add-data", "web/templates;web/templates",
         "--add-data", "web/static;web/static",
+        "--hidden-import", "selenium.webdriver.chrome.webdriver",
+        "--hidden-import", "selenium.webdriver.chrome.service",
+        "--hidden-import", "selenium.webdriver.chrome.options",
+        "--hidden-import", "selenium.webdriver.common.service",
+        "--hidden-import", "selenium.webdriver.common.options",
+        "--hidden-import", "selenium.webdriver.remote.webdriver",
+        "--hidden-import", "selenium.webdriver.remote.error_handler",
+        "--hidden-import", "selenium.webdriver.remote.command",
+        "--hidden-import", "selenium.webdriver.remote.connection",
+        "--hidden-import", "selenium.webdriver.common.by",
+        "--hidden-import", "selenium.webdriver.common.keys",
+        "--hidden-import", "selenium.webdriver.support.ui",
+        "--hidden-import", "selenium.webdriver.support.expected_conditions",
+        "--hidden-import", "selenium.common.exceptions",
+        "--hidden-import", "urllib3",
+        "--hidden-import", "urllib3.connectionpool",
         "run_web.py"
     ]
 
