@@ -81,7 +81,7 @@ def main():
     pyinstaller_cmd = [
         sys.executable, "-m", "PyInstaller",
         "--onefile",
-        "--noconsole",
+        "--console",
         "--name", "TikTokPublisherWeb",
         "--icon", "assets/icon.ico",
         "--add-data", "web/templates;web/templates",
