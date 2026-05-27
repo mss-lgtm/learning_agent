@@ -424,6 +424,13 @@ body {
     justify-content: center;
 }
 
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none !important;
+    box-shadow: none !important;
+}
+
 /* ==================== Content Area ==================== */
 .content-area {
     flex: 1;
@@ -748,6 +755,8 @@ body {
     align-items: center;
     justify-content: center;
     position: relative;
+    cursor: pointer;
+    overflow: hidden;
 }
 
 .video-thumbnail svg {
@@ -1717,4 +1726,197 @@ textarea.form-input {
     font-size: 14px;
     color: var(--text-secondary);
     margin-bottom: 8px;
+}
+
+/* ==================== Video Preview Modal ==================== */
+.modal-lg {
+    max-width: 800px;
+}
+
+.preview-body {
+    padding: 0;
+}
+
+.video-player-container {
+    width: 100%;
+    background: #000;
+    border-radius: 16px 16px 0 0;
+    overflow: hidden;
+}
+
+.video-player-container video {
+    width: 100%;
+    max-height: 450px;
+    display: block;
+    outline: none;
+}
+
+.preview-info {
+    padding: 20px 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.preview-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0;
+}
+
+.preview-filename {
+    font-size: 14px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.preview-filesize {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.preview-actions {
+    flex-shrink: 0;
+}
+
+/* ==================== Published Badge ==================== */
+.published-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 500;
+    background: rgba(0, 230, 118, 0.1);
+    color: #00E676;
+    border: 1px solid rgba(0, 230, 118, 0.2);
+    margin-left: 8px;
+    vertical-align: middle;
+}
+
+/* ==================== Account Manager ==================== */
+.account-manager {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.current-account {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 16px;
+    background: rgba(254, 44, 85, 0.05);
+    border: 1px solid rgba(254, 44, 85, 0.2);
+    border-radius: 12px;
+}
+
+.account-avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.account-avatar svg {
+    width: 24px;
+    height: 24px;
+    color: var(--primary);
+}
+
+.account-details {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.account-details strong {
+    font-size: 15px;
+}
+
+.account-status {
+    font-size: 12px;
+    color: var(--text-muted);
+}
+
+.account-status.authenticated {
+    color: #00E676;
+}
+
+.account-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+}
+
+.account-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 16px;
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-color);
+    border-radius: 10px;
+    transition: all var(--transition-fast);
+}
+
+.account-item:hover {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: var(--border-hover);
+}
+
+.account-item.active {
+    border-color: var(--primary);
+    background: rgba(254, 44, 85, 0.05);
+}
+
+.account-item-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.account-item-avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.account-item-avatar svg {
+    width: 16px;
+    height: 16px;
+    color: var(--text-secondary);
+}
+
+.account-item-name {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+.account-item-meta {
+    font-size: 11px;
+    color: var(--text-muted);
+}
+
+.account-item-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.account-item-actions .btn {
+    padding: 4px 10px;
+    font-size: 11px;
 }

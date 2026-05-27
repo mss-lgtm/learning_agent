@@ -343,27 +343,34 @@
                             </div>
                         </div>
 
-                        <!-- 抖音账号登录 -->
+                        <!-- 抖音账号管理 -->
                         <div class="card">
                             <div class="card-header">
-                                <h3>抖音账号登录</h3>
+                                <h3>抖音账号管理</h3>
                             </div>
-                            <div class="douyin-config">
-                                <div class="auth-status-info" id="authStatusInfo">
-                                    <div class="status-icon">
+                            <div class="account-manager">
+                                <div class="current-account" id="currentAccountInfo">
+                                    <div class="account-avatar">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                                            <circle cx="12" cy="12" r="10"/>
-                                            <line x1="12" y1="8" x2="12" y2="12"/>
-                                            <line x1="12" y1="16" x2="12.01" y2="16"/>
+                                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                                            <circle cx="12" cy="7" r="4"/>
                                         </svg>
                                     </div>
-                                    <div class="status-text">
-                                        <strong>登录状态：未登录</strong>
-                                        <p>点击下方按钮打开浏览器，使用抖音APP扫码登录</p>
+                                    <div class="account-details">
+                                        <strong id="currentAccountName">默认账号</strong>
+                                        <span class="account-status" id="currentAccountStatus">未登录</span>
                                     </div>
                                 </div>
+                                <div class="account-list" id="accountList"></div>
                                 <div class="form-actions">
-                                    <button class="btn btn-primary" id="scanLoginBtn">
+                                    <button class="btn btn-primary" id="addAccountBtn">
+                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                                            <line x1="12" y1="5" x2="12" y2="19"/>
+                                            <line x1="5" y1="12" x2="19" y2="12"/>
+                                        </svg>
+                                        添加账号
+                                    </button>
+                                    <button class="btn btn-secondary" id="scanLoginBtn">
                                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                             <rect x="3" y="3" width="7" height="7"/>
                                             <rect x="14" y="3" width="7" height="7"/>
@@ -383,10 +390,10 @@
                                 <div class="form-hint" style="margin-top: 12px;">
                                     <p>说明：</p>
                                     <ul style="margin-left: 16px; margin-top: 4px;">
+                                        <li>支持多账号切换，每个账号独立保存登录状态</li>
                                         <li>点击「扫码登录」会打开 Chrome 浏览器</li>
                                         <li>使用抖音 APP 扫描页面上的二维码完成登录</li>
                                         <li>登录成功后浏览器会自动关闭，Cookie 将保存到本地</li>
-                                        <li>后续发布视频会自动使用保存的 Cookie，无需重复登录</li>
                                     </ul>
                                 </div>
                             </div>
@@ -540,6 +547,32 @@
             <div class="modal-footer">
                 <button class="btn btn-secondary" id="cancelPublish">取消</button>
                 <button class="btn btn-primary" id="confirmPublish">确认发布</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 视频预览对话框 -->
+    <div class="modal" id="previewModal">
+        <div class="modal-content modal-lg">
+            <div class="modal-header">
+                <h3 id="previewTitle">视频预览</h3>
+                <button class="modal-close" id="closePreviewModal">&times;</button>
+            </div>
+            <div class="modal-body preview-body">
+                <div class="video-player-container">
+                    <video id="previewVideo" controls preload="metadata">
+                        您的浏览器不支持视频播放
+                    </video>
+                </div>
+                <div class="preview-info">
+                    <div class="preview-meta">
+                        <span class="preview-filename" id="previewFilename"></span>
+                        <span class="preview-filesize" id="previewFilesize"></span>
+                    </div>
+                    <div class="preview-actions">
+                        <button class="btn btn-primary" id="previewPublishBtn">发布此视频</button>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

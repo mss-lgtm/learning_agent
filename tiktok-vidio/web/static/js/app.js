@@ -2,6 +2,10 @@
 const API = {
     async get(url) {
         const response = await fetch(url);
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+            throw new Error(err.error || `请求失败: ${response.status}`);
+        }
         return response.json();
     },
 
@@ -11,6 +15,10 @@ const API = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
         });
+        if (!response.ok) {
+            const err = await response.json().catch(() => ({ error: `HTTP ${response.status}` }));
+            throw new Error(err.error || `请求失败: ${response.status}`);
+        }
         return response.json();
     }
 };
@@ -45,8 +53,17 @@ class App {
         this.currentSection = 'dashboard';
         this.currentLogTab = 'runtime';
         this.videos = [];
+        this.publishedRecords = {};
 
         this.init();
+    }
+
+    _escapeAttr(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    }
+
+    _escapeHtml(str) {
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
 
     async init() {
@@ -54,6 +71,7 @@ class App {
         this.createParticles();
         await this.loadConfig();
         await this.loadDouyinConfig();
+        await this.loadAccounts();
         await this.loadVideos();
         await this.updateSchedulerStatus();
         await this.updateDouyinStatus();
@@ -80,11 +98,44 @@ class App {
         document.getElementById('startScheduler').addEventListener('click', () => this.startScheduler());
         document.getElementById('stopScheduler').addEventListener('click', () => this.stopScheduler());
 
+        // Video grid (event delegation)
+        document.getElementById('videoGrid').addEventListener('click', (e) => {
+            const btn = e.target.closest('.publish-btn');
+            if (btn) {
+                const card = btn.closest('.video-card');
+                if (card) this.openPublishModal(card.dataset.path, card.dataset.filename);
+                return;
+            }
+            const thumb = e.target.closest('.video-thumbnail');
+            if (thumb) {
+                const card = thumb.closest('.video-card');
+                if (card) this.openPreviewModal(card.dataset.path, card.dataset.filename, card.dataset.size);
+            }
+        });
+
+        // Recent videos (event delegation)
+        document.getElementById('recentVideos').addEventListener('click', (e) => {
+            const item = e.target.closest('.video-item');
+            if (item && item.dataset.path) {
+                this.openPublishModal(item.dataset.path, item.dataset.filename);
+            }
+        });
+
         // Publish
         document.getElementById('publishBtn').addEventListener('click', () => this.openPublishModal());
         document.getElementById('closePublishModal').addEventListener('click', () => this.closePublishModal());
         document.getElementById('cancelPublish').addEventListener('click', () => this.closePublishModal());
         document.getElementById('confirmPublish').addEventListener('click', () => this.publishVideo());
+
+        // Preview modal
+        document.getElementById('closePreviewModal').addEventListener('click', () => this.closePreviewModal());
+        document.getElementById('previewPublishBtn').addEventListener('click', () => {
+            const video = document.getElementById('previewVideo');
+            const path = video.dataset.path;
+            const filename = document.getElementById('previewFilename').textContent;
+            this.closePreviewModal();
+            this.openPublishModal(path, filename);
+        });
 
         // Schedule form
         document.getElementById('scheduleForm').addEventListener('submit', (e) => {
@@ -102,6 +153,9 @@ class App {
         // Scan login
         document.getElementById('scanLoginBtn').addEventListener('click', () => this.startScanLogin());
         document.getElementById('checkLoginStatus').addEventListener('click', () => this.updateDouyinStatus());
+
+        // Account management
+        document.getElementById('addAccountBtn').addEventListener('click', () => this.addAccount());
 
         // Video search
         document.getElementById('videoSearch').addEventListener('input', (e) => this.searchVideos(e.target.value));
@@ -223,8 +277,12 @@ class App {
 
     async loadVideos() {
         try {
-            const data = await API.get('/api/videos');
-            this.videos = data.videos || [];
+            const [videoData, publishedData] = await Promise.all([
+                API.get('/api/videos'),
+                API.get('/api/published').catch(() => ({ records: {} }))
+            ]);
+            this.videos = videoData.videos || [];
+            this.publishedRecords = publishedData.records || {};
 
             this.renderVideoGrid();
             this.renderRecentVideos();
@@ -237,27 +295,28 @@ class App {
 
     renderVideoGrid() {
         const grid = document.getElementById('videoGrid');
-        grid.innerHTML = this.videos.map(video => `
-            <div class="video-card" data-path="${video.path}">
+        grid.innerHTML = this.videos.map(video => {
+            const pubBadge = this.publishedRecords && this.publishedRecords[video.filename]
+                ? '<span class="published-badge">已发布</span>' : '';
+            return `
+            <div class="video-card" data-path="${this._escapeAttr(video.path)}" data-filename="${this._escapeAttr(video.filename)}" data-size="${this._escapeAttr(video.size_str)}">
                 <div class="video-thumbnail">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </div>
                 <div class="video-card-info">
-                    <div class="video-card-name" title="${video.filename}">${video.filename}</div>
+                    <div class="video-card-name" title="${this._escapeAttr(video.filename)}">${this._escapeHtml(video.filename)}${pubBadge}</div>
                     <div class="video-card-meta">
                         <span>${video.size_str}</span>
                         <span>${video.modified_time}</span>
                     </div>
                 </div>
                 <div class="video-card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="app.openPublishModal('${video.path}', '${video.filename}')">
-                        发布
-                    </button>
+                    <button class="btn btn-primary btn-sm publish-btn">发布</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
     renderRecentVideos() {
@@ -265,14 +324,14 @@ class App {
         const recent = this.videos.slice(0, 5);
 
         container.innerHTML = recent.map(video => `
-            <div class="video-item" onclick="app.openPublishModal('${video.path}', '${video.filename}')">
+            <div class="video-item" data-path="${this._escapeAttr(video.path)}" data-filename="${this._escapeAttr(video.filename)}">
                 <div class="video-icon">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </div>
                 <div class="video-info">
-                    <div class="video-name">${video.filename}</div>
+                    <div class="video-name">${this._escapeHtml(video.filename)}</div>
                     <div class="video-meta">${video.size_str} · ${video.modified_time}</div>
                 </div>
                 <div class="video-action">
@@ -292,27 +351,28 @@ class App {
         );
 
         const grid = document.getElementById('videoGrid');
-        grid.innerHTML = filtered.map(video => `
-            <div class="video-card" data-path="${video.path}">
+        grid.innerHTML = filtered.map(video => {
+            const pubBadge = this.publishedRecords && this.publishedRecords[video.filename]
+                ? '<span class="published-badge">已发布</span>' : '';
+            return `
+            <div class="video-card" data-path="${this._escapeAttr(video.path)}" data-filename="${this._escapeAttr(video.filename)}" data-size="${this._escapeAttr(video.size_str)}">
                 <div class="video-thumbnail">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polygon points="5 3 19 12 5 21 5 3"/>
                     </svg>
                 </div>
                 <div class="video-card-info">
-                    <div class="video-card-name" title="${video.filename}">${video.filename}</div>
+                    <div class="video-card-name" title="${this._escapeAttr(video.filename)}">${this._escapeHtml(video.filename)}${pubBadge}</div>
                     <div class="video-card-meta">
                         <span>${video.size_str}</span>
                         <span>${video.modified_time}</span>
                     </div>
                 </div>
                 <div class="video-card-actions">
-                    <button class="btn btn-primary btn-sm" onclick="app.openPublishModal('${video.path}', '${video.filename}')">
-                        发布
-                    </button>
+                    <button class="btn btn-primary btn-sm publish-btn">发布</button>
                 </div>
-            </div>
-        `).join('');
+            </div>`;
+        }).join('');
     }
 
     openPublishModal(videoPath = '', filename = '') {
@@ -324,6 +384,181 @@ class App {
 
     closePublishModal() {
         document.getElementById('publishModal').classList.remove('active');
+    }
+
+    openPreviewModal(videoPath, filename, fileSize) {
+        const video = document.getElementById('previewVideo');
+        const container = video.parentElement;
+
+        // 移除旧的错误提示
+        const oldErr = container.querySelector('.preview-error');
+        if (oldErr) oldErr.remove();
+
+        // 添加加载指示器
+        video.style.display = 'none';
+        let loader = container.querySelector('.preview-loader');
+        if (!loader) {
+            loader = document.createElement('div');
+            loader.className = 'preview-loader';
+            loader.textContent = '加载中...';
+            loader.style.cssText = 'color:var(--text-muted);text-align:center;padding:60px 0;font-size:14px;';
+            container.appendChild(loader);
+        }
+        loader.style.display = 'block';
+
+        video.src = `/api/video/preview?path=${encodeURIComponent(videoPath)}`;
+        video.dataset.path = videoPath;
+
+        video.onloadeddata = () => {
+            loader.style.display = 'none';
+            video.style.display = 'block';
+        };
+
+        video.onerror = () => {
+            loader.style.display = 'none';
+            video.style.display = 'none';
+            const err = document.createElement('div');
+            err.className = 'preview-error';
+            err.textContent = '视频加载失败，请检查文件格式或路径';
+            err.style.cssText = 'color:#F44336;text-align:center;padding:60px 0;font-size:14px;';
+            container.appendChild(err);
+        };
+
+        document.getElementById('previewFilename').textContent = filename || '';
+        document.getElementById('previewFilesize').textContent = fileSize || '';
+        document.getElementById('previewModal').classList.add('active');
+    }
+
+    closePreviewModal() {
+        const video = document.getElementById('previewVideo');
+        const container = video.parentElement;
+        video.pause();
+        video.removeAttribute('src');
+        video.load();
+        video.onloadeddata = null;
+        video.onerror = null;
+        // 清理加载/错误提示
+        const loader = container.querySelector('.preview-loader');
+        if (loader) loader.remove();
+        const err = container.querySelector('.preview-error');
+        if (err) err.remove();
+        video.style.display = 'block';
+        document.getElementById('previewModal').classList.remove('active');
+    }
+
+    // ==================== Account Management ====================
+
+    async loadAccounts() {
+        try {
+            const data = await API.get('/api/accounts');
+            this.accounts = data.accounts || [];
+            this.activeAccountId = data.active_account;
+            this.renderAccountList();
+            this.renderCurrentAccount();
+        } catch (error) {
+            console.error('加载账号列表失败:', error);
+        }
+    }
+
+    renderCurrentAccount() {
+        const active = this.accounts.find(a => a.account_id === this.activeAccountId);
+        const nameEl = document.getElementById('currentAccountName');
+        const statusEl = document.getElementById('currentAccountStatus');
+
+        if (active) {
+            nameEl.textContent = active.nickname;
+            statusEl.textContent = '当前活跃';
+            statusEl.className = 'account-status authenticated';
+        } else {
+            nameEl.textContent = '默认账号';
+            statusEl.textContent = '未选择';
+            statusEl.className = 'account-status';
+        }
+    }
+
+    renderAccountList() {
+        const container = document.getElementById('accountList');
+        if (!this.accounts || this.accounts.length === 0) {
+            container.innerHTML = '<div style="text-align: center; color: var(--text-muted); padding: 12px; font-size: 13px;">暂无账号，请点击添加</div>';
+            return;
+        }
+
+        container.innerHTML = this.accounts.map(acc => `
+            <div class="account-item ${acc.account_id === this.activeAccountId ? 'active' : ''}" data-id="${acc.account_id}">
+                <div class="account-item-info">
+                    <div class="account-item-avatar">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/>
+                            <circle cx="12" cy="7" r="4"/>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="account-item-name">${this._escapeHtml(acc.nickname)}</div>
+                        <div class="account-item-meta">最后使用: ${acc.last_used || '--'}</div>
+                    </div>
+                </div>
+                <div class="account-item-actions">
+                    ${acc.account_id !== this.activeAccountId ?
+                        `<button class="btn btn-secondary btn-sm switch-account-btn" data-id="${acc.account_id}">切换</button>` :
+                        '<span class="published-badge">当前</span>'
+                    }
+                    <button class="btn btn-danger btn-sm remove-account-btn" data-id="${acc.account_id}">删除</button>
+                </div>
+            </div>
+        `).join('');
+
+        container.querySelectorAll('.switch-account-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.switchAccount(btn.dataset.id);
+            });
+        });
+
+        container.querySelectorAll('.remove-account-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                this.removeAccount(btn.dataset.id);
+            });
+        });
+    }
+
+    async addAccount() {
+        const nickname = prompt('请输入账号昵称（可选）:');
+        try {
+            const result = await API.post('/api/accounts/add', { nickname: nickname || '' });
+            if (result.success) {
+                this.toast.show('账号已添加');
+                await this.loadAccounts();
+            }
+        } catch (error) {
+            this.toast.show('添加账号失败', 'error');
+        }
+    }
+
+    async switchAccount(accountId) {
+        try {
+            const result = await API.post('/api/accounts/switch', { account_id: accountId });
+            if (result.success) {
+                this.toast.show(`已切换到: ${result.account.nickname}`);
+                await this.loadAccounts();
+                await this.updateDouyinStatus();
+            }
+        } catch (error) {
+            this.toast.show('切换账号失败', 'error');
+        }
+    }
+
+    async removeAccount(accountId) {
+        if (!confirm('确定要删除此账号吗？相关的登录信息将被清除。')) return;
+        try {
+            const result = await API.post('/api/accounts/remove', { account_id: accountId });
+            if (result.success) {
+                this.toast.show('账号已删除');
+                await this.loadAccounts();
+            }
+        } catch (error) {
+            this.toast.show('删除账号失败', 'error');
+        }
     }
 
     async publishVideo() {
@@ -341,6 +576,11 @@ class App {
             return;
         }
 
+        const btn = document.getElementById('confirmPublish');
+        const origText = btn.textContent;
+        btn.disabled = true;
+        btn.textContent = '发布中...';
+
         try {
             const result = await API.post('/api/publish', {
                 video_path: videoPath,
@@ -348,14 +588,13 @@ class App {
                 description: description
             });
 
-            if (result.error) {
-                this.toast.show(result.error, 'error');
-            } else {
-                this.toast.show('视频发布成功！');
-                this.closePublishModal();
-            }
+            this.toast.show('视频发布成功！');
+            this.closePublishModal();
         } catch (error) {
             this.toast.show('发布失败: ' + error.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = origText;
         }
     }
 

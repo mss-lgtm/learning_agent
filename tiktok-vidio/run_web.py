@@ -8,6 +8,16 @@ import socket
 import webbrowser
 import threading
 
+# PyInstaller 打包后隐藏控制台窗口（Flask 仍能正常工作）
+if sys.platform == 'win32' and getattr(sys, 'frozen', False):
+    try:
+        import ctypes
+        ctypes.windll.user32.ShowWindow(
+            ctypes.windll.kernel32.GetConsoleWindow(), 0  # SW_HIDE
+        )
+    except Exception:
+        pass
+
 # 添加项目路径
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 

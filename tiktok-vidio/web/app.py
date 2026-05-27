@@ -1,8 +1,11 @@
-from flask import Flask, render_template, jsonify, request
+from flask import Flask, render_template, jsonify, request, send_file, Response
 from flask_cors import CORS
 import sys
 import os
+import re
 import threading
+from pathlib import Path
+from dataclasses import asdict
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -10,6 +13,8 @@ from core.config import ConfigManager
 from core.video_scanner import VideoScanner
 from core.browser_publisher import BrowserPublisher
 from core.scheduler import TaskScheduler
+from core.publish_tracker import PublishTracker
+from core.account_manager import AccountManager
 from core.logger import logger
 
 app = Flask(__name__)
@@ -17,7 +22,9 @@ CORS(app)
 
 config_manager = ConfigManager()
 scheduler = TaskScheduler()
-browser_publisher = BrowserPublisher(cookie_dir=config_manager.config.douyin.cookie_dir)
+publish_tracker = PublishTracker()
+account_manager = AccountManager()
+browser_publisher = BrowserPublisher(cookie_dir=account_manager.get_active_cookie_dir())
 
 # 登录状态跟踪
 _login_in_progress = False
@@ -92,7 +99,7 @@ def get_videos():
     return jsonify({
         "videos": [
             {
-                "path": v.path,
+                "path": v.path.replace("\\", "/"),
                 "filename": v.filename,
                 "size": v.size,
                 "size_str": v.size_str,
@@ -102,6 +109,55 @@ def get_videos():
             for v in videos
         ]
     })
+
+
+@app.route("/api/video/preview", methods=["GET"])
+def video_preview():
+    video_path = request.args.get("path", "").replace("\\", "/")
+    if not video_path:
+        return jsonify({"error": "未指定视频路径"}), 400
+
+    file_path = Path(video_path)
+    if not file_path.exists():
+        return jsonify({"error": "视频文件不存在"}), 404
+
+    import mimetypes
+    mime_type = mimetypes.guess_type(str(file_path))[0] or "video/mp4"
+    file_size = file_path.stat().st_size
+
+    # 处理 Range 请求（视频拖拽/seek 必需）
+    range_header = request.headers.get("Range")
+    if range_header:
+        m = re.match(r"bytes=(\d+)-(\d*)", range_header)
+        if m:
+            start = int(m.group(1))
+            end = int(m.group(2)) if m.group(2) else min(start + 1024 * 1024, file_size - 1)
+            end = min(end, file_size - 1)
+            length = end - start + 1
+
+            with open(file_path, "rb") as f:
+                f.seek(start)
+                data = f.read(length)
+
+            rv = Response(data, 206, mimetype=mime_type)
+            rv.headers.add("Content-Range", f"bytes {start}-{end}/{file_size}")
+            rv.headers.add("Accept-Ranges", "bytes")
+            rv.headers.add("Content-Length", str(length))
+            return rv
+
+    # 完整文件响应
+    def generate():
+        with open(file_path, "rb") as f:
+            while True:
+                chunk = f.read(1024 * 1024)
+                if not chunk:
+                    break
+                yield chunk
+
+    rv = Response(generate(), 200, mimetype=mime_type)
+    rv.headers.add("Accept-Ranges", "bytes")
+    rv.headers.add("Content-Length", str(file_size))
+    return rv
 
 
 @app.route("/api/douyin/status", methods=["GET"])
@@ -153,19 +209,23 @@ def douyin_login_status():
 @app.route("/api/publish", methods=["POST"])
 def publish_video():
     data = request.json
-    video_path = data.get("video_path")
+    video_path = data.get("video_path", "").replace("\\", "/")
     title = data.get("title", "")
     description = data.get("description", "")
+    is_manual = data.get("is_manual", True)
 
     if not video_path:
         return jsonify({"error": "未指定视频路径"}), 400
 
+    video_name = Path(video_path).name
+
+    # 定时发布去重检查（手动发布不受限制）
+    if not is_manual and publish_tracker.was_scheduled(video_name):
+        return jsonify({"error": "该视频已通过定时任务发布", "skipped": True}), 400
+
     if not browser_publisher.is_authenticated():
         logger.log_publish(title, "失败", "未授权")
         return jsonify({"error": "未授权，请先扫码登录抖音"}), 400
-
-    from pathlib import Path
-    video_name = Path(video_path).name
 
     result = browser_publisher.upload_video(video_path, title, description)
 
@@ -173,8 +233,123 @@ def publish_video():
         logger.log_publish(video_name, "失败", result["error"])
         return jsonify({"error": result["error"]}), 400
 
+    publish_type = "manual" if is_manual else "scheduled"
+    publish_tracker.record_publish(video_name, publish_type)
     logger.log_publish(video_name, "成功")
     return jsonify({"success": True, "result": result})
+
+
+@app.route("/api/published", methods=["GET"])
+def get_published():
+    records = publish_tracker.get_all()
+    return jsonify({"records": records})
+
+
+@app.route("/api/published/clear", methods=["POST"])
+def clear_published():
+    publish_tracker.clear()
+    logger.log_operation("清除发布记录")
+    return jsonify({"success": True})
+
+
+# ==================== 账号管理 API ====================
+
+@app.route("/api/accounts", methods=["GET"])
+def list_accounts():
+    accounts = account_manager.list_accounts()
+    return jsonify({
+        "accounts": [asdict(a) for a in accounts],
+        "active_account": account_manager._active_account_id,
+    })
+
+
+@app.route("/api/accounts/current", methods=["GET"])
+def current_account():
+    active = account_manager.get_active_account()
+    if active:
+        return jsonify(asdict(active))
+    return jsonify({"account_id": None, "nickname": "默认账号", "is_active": False})
+
+
+@app.route("/api/accounts/add", methods=["POST"])
+def add_account():
+    data = request.json or {}
+    nickname = data.get("nickname", "")
+    account = account_manager.add_account(nickname)
+    logger.log_operation("添加账号", f"昵称: {account.nickname}")
+    return jsonify({"success": True, "account": asdict(account)})
+
+
+@app.route("/api/accounts/switch", methods=["POST"])
+def switch_account():
+    global browser_publisher
+    data = request.json
+    account_id = data.get("account_id")
+    if not account_id:
+        return jsonify({"error": "未指定账号ID"}), 400
+
+    account = account_manager.switch_account(account_id)
+    if not account:
+        return jsonify({"error": "账号不存在"}), 404
+
+    browser_publisher.close()
+    browser_publisher = BrowserPublisher(cookie_dir=account.cookie_dir)
+
+    logger.log_operation("切换账号", f"切换到: {account.nickname}")
+    return jsonify({"success": True, "account": asdict(account)})
+
+
+@app.route("/api/accounts/remove", methods=["POST"])
+def remove_account():
+    data = request.json
+    account_id = data.get("account_id")
+    if not account_id:
+        return jsonify({"error": "未指定账号ID"}), 400
+
+    if account_manager.remove_account(account_id):
+        logger.log_operation("删除账号", f"ID: {account_id}")
+        return jsonify({"success": True})
+    return jsonify({"error": "账号不存在"}), 404
+
+
+@app.route("/api/accounts/login", methods=["POST"])
+def account_login():
+    global _login_in_progress, _login_result, browser_publisher
+    data = request.json or {}
+    account_id = data.get("account_id")
+
+    if _login_in_progress:
+        return jsonify({"error": "登录正在进行中"}), 400
+
+    if account_id:
+        account = account_manager.switch_account(account_id)
+        if not account:
+            return jsonify({"error": "账号不存在"}), 404
+        browser_publisher.close()
+        browser_publisher = BrowserPublisher(cookie_dir=account.cookie_dir)
+
+    _login_in_progress = True
+    _login_result = None
+
+    def do_login():
+        global _login_in_progress, _login_result
+        try:
+            _login_result = browser_publisher.start_login()
+            if _login_result:
+                logger.log_auth("扫码登录", "成功")
+            else:
+                logger.log_auth("扫码登录", "失败", "超时或用户取消")
+        except Exception as e:
+            _login_result = False
+            logger.log_auth("扫码登录", "失败", str(e))
+        finally:
+            _login_in_progress = False
+
+    thread = threading.Thread(target=do_login, daemon=True)
+    thread.start()
+
+    logger.log_auth("扫码登录", "启动")
+    return jsonify({"success": True, "message": "浏览器已打开，请扫码登录"})
 
 
 @app.route("/api/scheduler/status", methods=["GET"])
@@ -194,12 +369,17 @@ def start_scheduler():
         scanner = VideoScanner(directory)
         video = scanner.get_latest_video()
         if video:
+            if publish_tracker.was_scheduled(video.filename):
+                logger.log_scheduler("执行", f"跳过已发布视频: {video.filename}")
+                return
+
             if browser_publisher.is_authenticated():
                 logger.log_scheduler("执行", f"发布视频: {video.filename}")
-                result = browser_publisher.upload_video(video.path, video.filename, "")
+                result = browser_publisher.upload_video(video.path.replace("\\", "/"), video.filename, "")
                 if "error" in result:
                     logger.log_publish(video.filename, "失败", result["error"])
                 else:
+                    publish_tracker.record_publish(video.filename, "scheduled")
                     logger.log_publish(video.filename, "成功")
             else:
                 logger.log_scheduler("执行", "未授权，跳过发布")
